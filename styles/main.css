@@ -1,0 +1,14 @@
+/* === THE RISING WRITER - ESTILOS PRINCIPALES === */
+
+/* Importar módulos en orden lógico */
+@import 'base.css';           /* Variables y reset */
+@import 'layout.css';         /* Estructura principal */
+@import 'fileTree.css';       /* Árbol de archivos */
+@import 'editor.css';         /* Editor y formato */
+@import 'buttons.css';        /* Sistema de botones */
+@import 'aiPanel.css';        /* Panel de IA */
+@import 'menus.css';          /* Menús contextuales */
+@import 'modals.css';         /* Sistema de modales */
+@import 'animations.css';     /* Animaciones */
+@import 'tabs.css';
+@import 'split.css';        /* Estilos de pestañas y división de pantalla */

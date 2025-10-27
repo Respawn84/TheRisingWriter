@@ -1,0 +1,105 @@
+/* === LAYOUT PRINCIPAL === */
+
+#main-container {
+  display: flex;
+  height: calc(100vh - 40px);
+}
+
+/* TOOLBAR */
+#toolbar {
+  height: 40px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  -webkit-app-region: drag;
+}
+
+#toolbar h1 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+#toolbar button {
+  -webkit-app-region: no-drag;
+}
+
+.toolbar-left, .toolbar-right { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px;
+  margin-left: 60px; 
+}
+
+.toolbar-center { 
+  flex: 1; 
+  text-align: center; 
+}
+
+#file-name {
+  font-size: 12px; 
+  color: var(--text-secondary); 
+}
+
+#ai-status { 
+  display: flex; 
+  align-items: center; 
+  gap: 6px; 
+  font-size: 11px; 
+}
+
+.status-dot { 
+  width: 8px; 
+  height: 8px; 
+  border-radius: 50%; 
+  background: var(--text-secondary); 
+}
+
+.status-dot.connected { 
+  background: var(--success); 
+}
+
+.status-dot.error { 
+  background: var(--danger); 
+}
+
+/* SIDEBAR */
+#sidebar {
+  width: 250px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sidebar-header h3 { 
+  flex: 1; 
+  font-size: 13px; 
+  font-weight: 500; 
+}
+
+/* EDITOR CONTAINER */
+#editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+}

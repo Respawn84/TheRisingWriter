@@ -1,0 +1,35 @@
+/* === EDITOR Y FORMATO === */
+
+.editor-panel #editor {
+  flex: 1;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: none;
+  padding: 24px;
+  font-family: 'Georgia', serif;
+  font-size: 16px;
+  line-height: 1.8;
+  resize: none;
+  outline: none;
+}
+
+#editor::placeholder {
+  color: var(--text-secondary);
+}
+
+/* BARRA DE FORMATO */
+#format-bar {
+  height: 44px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}

@@ -1,0 +1,57 @@
+/* === BOTONES === */
+
+button {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+button:hover { 
+  background: var(--bg-tertiary); 
+}
+
+.btn-icon { 
+  padding: 4px 8px; 
+}
+
+.btn-link { 
+  color: var(--accent); 
+  padding: 0; 
+  text-decoration: underline; 
+}
+
+.btn-format { 
+  font-family: serif; 
+  font-size: 14px; 
+}
+
+.btn-primary { 
+  background: var(--accent); 
+  color: white; 
+}
+
+.btn-primary:hover { 
+  background: var(--accent-hover); 
+}
+
+.btn-secondary { 
+  background: var(--bg-tertiary); 
+}
+
+.btn-secondary:hover { 
+  background: var(--border); 
+}
+
+.btn-danger { 
+  background: var(--danger); 
+  color: white; 
+}
+
+.btn-danger:hover { 
+  opacity: 0.9; 
+}

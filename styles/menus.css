@@ -1,0 +1,50 @@
+/* === MENÚS CONTEXTUALES === */
+
+#context-menu,
+#file-context-menu {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  padding: 4px;
+  min-width: 200px;
+  z-index: 1000;
+}
+
+#context-menu.hidden,
+#file-context-menu.hidden { 
+  display: none; 
+}
+
+.menu-header {
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.menu-item {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius);
+}
+
+.menu-item span:first-child { 
+  opacity: 0.7; 
+}
+
+.menu-divider { 
+  height: 1px; 
+  background: var(--border); 
+  margin: 4px 0; 
+}
+
+.menu-section {
+  margin: 2px 0;
+}

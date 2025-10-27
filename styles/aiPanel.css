@@ -1,0 +1,71 @@
+/* === PANEL DE IA === */
+
+#ai-panel {
+  position: absolute;
+  bottom: 44px;
+  right: 0;
+  width: 400px;
+  height: 400px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+#ai-panel.hidden { 
+  display: none; 
+}
+
+.ai-header {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-header h3 { 
+  font-size: 13px; 
+  font-weight: 500; 
+}
+
+.ai-response {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ai-actions {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+
+/* LOADING SPINNER */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

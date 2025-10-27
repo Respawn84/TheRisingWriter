@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Rising Writer</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <div class="toolbar-left">
+      <span id="file-indicator">Sin archivo</span>
+    </div>
+    <div class="toolbar-center">
+      <h1>📖 The Rising Writer</h1>
+    </div>
+    <div class="toolbar-right">
+      <button id="btn-stats" class="btn-icon" title="Estadísticas">📈</button>
+      <div id="ai-status">
+        <span class="status-dot" id="ai-dot"></span>
+        <span id="ai-text">IA: Verificando...</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-container">
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <h3>📁 Proyecto</h3>
+        <button id="btn-open" class="btn-icon" title="Abrir">📂</button>
+        <button id="btn-new-file" class="btn-icon" title="Nuevo archivo">📄</button>
+        <button id="btn-new-folder" class="btn-icon" title="Nueva carpeta">➕</button>
+      </div>
+      <div id="file-tree">
+        <div class="empty-state">
+          <p>No hay proyecto abierto</p>
+          <button id="btn-open-empty" class="btn-link">Abrir carpeta</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor -->
+    <div id="editor-container">
+
+      <!-- Tab Bar -->
+      <div id="tab-bar">
+        <div id="tabs-container"></div>
+        <button id="btn-toggle-split" class="btn-icon" title="Split vertical">⫽</button>
+      </div>
+
+      <!-- Editors Container -->
+      <div id="editors-wrapper">
+        <div id="editor-main" class="editor-panel">
+
+      <textarea id="editor" placeholder="Selecciona un archivo para empezar..."></textarea>
+        </div>
+        <div id="editor-split" class="editor-panel hidden">
+          <div class="split-header">
+            <span id="split-file-name">📄 Referencia</span>
+            <button id="btn-close-split" class="btn-icon-small" title="Cerrar split">✕</button>
+          </div>
+          <textarea id="editor-reference" placeholder="Archivo de referencia..." readonly></textarea>
+        </div>
+      </div>
+
+
+
+
+      <!-- Format bar -->
+      <div id="format-bar">
+        <button id="btn-save" class="btn-primary">💾 Guardar</button>
+        <div class="divider"></div>
+        <button id="btn-bold" class="btn-format" title="Negrita"><b>B</b></button>
+        <button id="btn-italic" class="btn-format" title="Cursiva"><i>I</i></button>
+        <button id="btn-underline" class="btn-format" title="Subrayado"><u>U</u></button>
+        <div class="divider"></div>
+        <button id="btn-quotes-latina" class="btn-format" title="Comillas latinas">« »</button>
+        <button id="btn-quotes-raya" class="btn-format" title="Raya">—</button>
+        <button id="btn-quotes-normal" class="btn-format" title="Comillas">" "</button>
+      </div>
+
+      <!-- AI Panel -->
+      <div id="ai-panel" class="hidden">
+        <div class="ai-header">
+          <h3>🤖 Claude</h3>
+          <button id="btn-close-ai" class="btn-icon">✕</button>
+        </div>
+        <div id="ai-response" class="ai-response">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Consultando...</p>
+          </div>
+        </div>
+        <div class="ai-actions">
+          <button id="btn-apply" class="btn-primary">✓ Aplicar</button>
+          <button id="btn-copy" class="btn-secondary">📋 Copiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="context-menu" class="hidden">
+    <div class="menu-section">
+      <div class="menu-header">✨ Correcciones</div>
+      <button class="menu-item" data-action="corregir">
+        <span>✓</span> Corregir ortotipografía
+      </button>
+    </div>
+    <div class="menu-divider"></div>
+    <div class="menu-section">
+      <div class="menu-header">🔍 Mejoras</div>
+      <button class="menu-item" data-action="sinonimos">
+        <span>📖</span> Buscar sinónimos
+      </button>
+      <button class="menu-item" data-action="mejorar">
+        <span>✨</span> Mejorar redacción
+      </button>
+      <button class="menu-item" data-action="expandir">
+        <span>📝</span> Expandir descripción
+      </button>
+    </div>
+    <div class="menu-divider"></div>
+    <div class="menu-section">
+      <button class="menu-item" data-action="copiar">
+        <span>📋</span> Copiar
+      </button>
+      <button class="menu-item" data-action="cortar">
+        <span>✂️</span> Cortar
+      </button>
+      <button class="menu-item" data-action="pegar">
+        <span>📄</span> Pegar
+      </button>
+    </div>
+  </div>
+  <!-- Context Menu for Files/Folders -->
+  <div id="file-context-menu" class="hidden">
+    <div class="menu-section">
+      <button class="menu-item" data-action="new-file-here" data-folder-only="true">
+        <span>📄</span> Nuevo archivo aquí
+      </button>
+      <button class="menu-item" data-action="open-split" data-file-only="true">
+        <span>⫽</span> Abrir en split derecho
+      </button>
+      <div class="menu-divider"></div>
+    </div>
+    <div class="menu-divider"></div>
+    <div class="menu-section">
+      <button class="menu-item" data-action="rename">
+        <span>✏️</span> Renombrar
+      </button>
+      <button class="menu-item" data-action="move">
+        <span>📁</span> Mover a carpeta
+      </button>
+      <button class="menu-item" data-action="delete">
+        <span>🗑️</span> Borrar
+      </button>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="modal-new-file" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📄 Nuevo archivo</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Nombre del archivo:</label>
+        <input type="text" id="input-file-name" class="modal-input" placeholder="mi-archivo.txt">
+        <div id="file-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-new-file" class="btn-primary">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-folder" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📁 Nueva carpeta</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Nombre:</label>
+        <input type="text" id="input-folder-name" class="modal-input" placeholder="Mi carpeta">
+        <div id="folder-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-folder" class="btn-primary">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-rename" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>✏️ Renombrar</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Nuevo nombre:</label>
+        <input type="text" id="input-rename" class="modal-input">
+        <div id="rename-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-rename" class="btn-primary">Renombrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-move" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📁 Mover a carpeta</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="move-message"></p>
+        <label>Selecciona destino:</label>
+        <select id="select-destination" class="modal-input">
+          <option value="">-- Selecciona carpeta --</option>
+        </select>
+        <div id="move-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-move" class="btn-primary">Mover</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-delete" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚠️ Confirmar borrado</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="delete-message"></p>
+        <div class="warning">⚠️ Esta acción no se puede deshacer</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-delete" class="btn-danger">Borrar</button>
+      </div>
+    </div>
+  </div>
+
+<div id="modal-unsaved" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚠️ Cambios sin guardar</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Hay cambios sin guardar en el archivo actual.</p>
+        <div class="warning">⚠️ Se perderán los cambios si no guardas</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-discard" class="btn-secondary">Descartar cambios</button>
+        <button id="btn-save-and-continue" class="btn-primary">Guardar y continuar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-stats" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>📈 Estadísticas de Uso</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="stats-summary">
+          <div class="stat-card">
+            <div class="stat-label">Tokens Input</div>
+            <div class="stat-value" id="stat-input">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Tokens Output</div>
+            <div class="stat-value" id="stat-output">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Coste Total</div>
+            <div class="stat-value" id="stat-cost">$0.00</div>
+          </div>
+        </div>
+        <div class="stats-actions">
+          <button id="btn-pricing" class="btn-secondary">⚙️ Precios</button>
+          <button id="btn-log" class="btn-secondary">📄 Ver Log</button>
+        </div>
+        <div class="stats-recent">
+          <h4>Recientes</h4>
+          <div id="recent-txs"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-pricing" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>💰 Configurar Precios</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Precio Input ($/millón tokens):</label>
+        <input type="number" id="input-price-in" class="modal-input" step="0.01" value="3.00">
+        <label>Precio Output ($/millón tokens):</label>
+        <input type="number" id="input-price-out" class="modal-input" step="0.01" value="15.00">
+        <div id="pricing-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-save-pricing" class="btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cargar módulos en orden de dependencias -->
+<script src="renderer/state.js"></script>
+  <script src="renderer/tabs.js"></script>
+  <script src="renderer/split.js"></script>
+  <script src="renderer/fileSystem.js"></script>
+  <script src="renderer/editor.js"></script>
+  <script src="renderer/modals.js"></script>
+  <script src="renderer/newFile.js"></script>
+  <script src="renderer/moveFile.js"></script>
+  <script src="renderer/aiPanel.js"></script>
+  <script src="renderer/app.js"></script>
+</body>
+</html>

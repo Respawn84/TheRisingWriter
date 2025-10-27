@@ -1,0 +1,39 @@
+/* === ÁRBOL DE ARCHIVOS === */
+
+#file-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.file-item, .folder-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: var(--radius);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.file-item:hover, .folder-item:hover { 
+  background: var(--bg-tertiary); 
+}
+
+.file-item.active { 
+  background: var(--accent); 
+  color: white; 
+}
+
+.folder-item.expanded > .folder-icon::before { 
+  content: '📂'; 
+}
+
+.folder-item.collapsed > .folder-icon::before { 
+  content: '📁'; 
+}
+
+.folder-children {
+  padding-left: 16px;
+}
