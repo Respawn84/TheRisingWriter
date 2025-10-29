@@ -130,6 +130,22 @@ function setupEditorContextMenu() {
   });
 }
 
+// Actualizar contador de palabras
+function updateWordCount() {
+  const editor = document.getElementById('editor');
+  const wordCountEl = document.getElementById('word-count');
+  
+  const text = editor.value.trim();
+  if (!text) {
+    wordCountEl.textContent = '0 palabras';
+    return;
+  }
+  
+  // Contar palabras (separadas por espacios/saltos de línea)
+  const words = text.split(/\s+/).filter(w => w.length > 0).length;
+  wordCountEl.textContent = `${words} palabra${words !== 1 ? 's' : ''}`;
+}
+
 // Configurar listeners del editor
 function setupEditorListeners() {
   const editor = document.getElementById('editor');
@@ -140,6 +156,7 @@ function setupEditorListeners() {
     if (tab && editor.value !== state.currentFileContent) {
       markTabAsModified();
     }
+    updateWordCount();
   });
   
   // Guardar con Cmd+S
@@ -168,5 +185,5 @@ function setupEditorListeners() {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { saveCurrentFile, formatText, insertText, setupEditorListeners };
+  module.exports = { saveCurrentFile, formatText, insertText, updateWordCount, setupEditorListeners };
 }

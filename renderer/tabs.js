@@ -123,6 +123,7 @@ async function loadTabContent(index) {
     state.currentFileContent = tab.content;
     state.hasUnsavedChanges = tab.hasChanges;
     updateFileIndicator();
+    updateWordCount();
     return;
   }
   
@@ -136,6 +137,7 @@ async function loadTabContent(index) {
     state.hasUnsavedChanges = false;
     tab.hasChanges = false;
     updateFileIndicator();
+    updateWordCount();
   } else {
     showNotification(`Error al leer: ${tab.name}`);
   }
@@ -149,6 +151,7 @@ function clearEditor() {
   state.currentFileContent = '';
   state.hasUnsavedChanges = false;
   updateFileIndicator();
+  updateWordCount();
 }
 
 // Marcar pestaña activa como modificada

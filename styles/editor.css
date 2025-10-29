@@ -33,3 +33,16 @@
   height: 20px;
   background: var(--border);
 }
+
+.format-bar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+#word-count {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 0 8px;
+  user-select: none;
+}
