@@ -9,6 +9,7 @@
 @import 'aiPanel.css';        /* Panel de IA */
 @import 'menus.css';          /* Menús contextuales */
 @import 'modals.css';         /* Sistema de modales */
+@import 'findReplace.css';    /* Buscar y reemplazar */
 @import 'animations.css';     /* Animaciones */
 @import 'tabs.css';
 @import 'split.css';        /* Estilos de pestañas y división de pantalla */

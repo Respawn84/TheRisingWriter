@@ -13,6 +13,10 @@ function setupMainEventListeners() {
   window.electronAPI.onShowUsageStats(() => {
     openModal('modal-stats');
   });
+  
+  window.electronAPI.onShowFindReplace(() => {
+    openModal('modal-find-replace');
+  });
 }
 
 // Inicializar todo
@@ -26,6 +30,7 @@ function setupAllListeners() {
   setupModalListeners();
   setupNewFileListeners();
   setupMoveFileListeners();
+  setupFindReplaceListeners();
   setupAIPanelListeners();
 }
 

@@ -338,6 +338,45 @@
     </div>
   </div>
 
+  <div id="modal-find-replace" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🔍 Buscar y Reemplazar</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Buscar:</label>
+        <input type="text" id="input-find" class="modal-input" placeholder="Texto a buscar">
+        
+        <label>Reemplazar con:</label>
+        <input type="text" id="input-replace" class="modal-input" placeholder="Nuevo texto">
+        
+        <div class="find-options">
+          <label class="checkbox-label">
+            <input type="checkbox" id="check-case-sensitive">
+            <span>Distinguir mayúsculas/minúsculas</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="check-whole-word">
+            <span>Solo palabras completas</span>
+          </label>
+        </div>
+        
+        <div id="find-results" class="find-results hidden">
+          <span id="find-count">0 coincidencias</span>
+        </div>
+        
+        <div id="find-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-replace-one" class="btn-secondary">Reemplazar siguiente</button>
+        <button id="btn-replace-all" class="btn-primary">Reemplazar todo</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Cargar módulos en orden de dependencias -->
 <script src="renderer/state.js"></script>
   <script src="renderer/tabs.js"></script>
@@ -347,6 +386,7 @@
   <script src="renderer/modals.js"></script>
   <script src="renderer/newFile.js"></script>
   <script src="renderer/moveFile.js"></script>
+  <script src="renderer/findReplace.js"></script>
   <script src="renderer/aiPanel.js"></script>
   <script src="renderer/app.js"></script>
 </body>

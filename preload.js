@@ -26,5 +26,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Eventos del main
   onProjectFolderOpened: (callback) => ipcRenderer.on('project-folder-opened', (_, path) => callback(path)),
   onSaveFile: (callback) => ipcRenderer.on('save-file', callback),
-  onShowUsageStats: (callback) => ipcRenderer.on('show-usage-stats', callback)
+  onShowUsageStats: (callback) => ipcRenderer.on('show-usage-stats', callback),
+  onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback)
 });

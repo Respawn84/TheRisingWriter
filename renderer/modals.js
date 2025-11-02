@@ -11,6 +11,7 @@ function openModal(modalId) {
   if (modalId === 'modal-delete') prepareDeleteModal();
   if (modalId === 'modal-new-file') prepareNewFileModal();
   if (modalId === 'modal-move') prepareMoveModal();
+  if (modalId === 'modal-find-replace') prepareFindReplaceModal();
 }
 
 // Cerrar modal

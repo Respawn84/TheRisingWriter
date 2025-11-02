@@ -56,7 +56,13 @@ function createMenu() {
         { role: 'cut', label: 'Cortar' },
         { role: 'copy', label: 'Copiar' },
         { role: 'paste', label: 'Pegar' },
-        { role: 'selectAll', label: 'Seleccionar todo' }
+        { role: 'selectAll', label: 'Seleccionar todo' },
+        { type: 'separator' },
+        {
+          label: 'Buscar y Reemplazar...',
+          accelerator: 'CmdOrCtrl+F',
+          click: () => mainWindow.webContents.send('show-find-replace')
+        }
       ]
     },
     {
