@@ -171,3 +171,71 @@
   font-size: 11px;
   color: var(--text-secondary);
 }
+
+/* === MODAL BUSCAR Y REEMPLAZAR (POSICIONADO ABAJO DERECHA) === */
+
+#modal-find-replace {
+  pointer-events: none; /* No captura eventos, permite interacción con editor */
+  background: transparent; /* Sin backdrop */
+}
+
+#modal-find-replace .modal-backdrop {
+  display: none; /* Sin backdrop */
+}
+
+#modal-find-replace .modal-content {
+  position: absolute;
+  bottom: 44px; /* Encima de la format-bar */
+  right: 0;
+  width: 400px;
+  max-width: 400px;
+  margin: 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  pointer-events: auto; /* El modal sí captura eventos */
+}
+
+/* Estilos específicos para el modal de búsqueda */
+.find-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  color: var(--text-primary);
+}
+
+.find-results {
+  background: var(--bg-tertiary);
+  padding: 8px;
+  border-radius: var(--radius);
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.find-results.hidden {
+  display: none;
+}
+
+#find-count {
+  color: var(--accent);
+  font-weight: 500;
+}

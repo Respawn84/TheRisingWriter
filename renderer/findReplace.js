@@ -25,7 +25,7 @@ function prepareFindReplaceModal() {
   // Pre-llenar con texto seleccionado si existe
   if (state.selectedText && state.selectedText.length > 0) {
     findInput.value = state.selectedText;
-    setTimeout(() => performFind(), 100);
+    // NO ejecutar búsqueda automática - usuario debe presionar "Buscar"
   }
   
   setTimeout(() => findInput.focus(), 100);
@@ -108,9 +108,23 @@ function highlightMatch() {
   const findText = document.getElementById('input-find').value;
   const matchIndex = findMatches[currentMatchIndex];
   
+  // Seleccionar el texto SIN cambiar el foco
   editor.focus();
   editor.setSelectionRange(matchIndex, matchIndex + findText.length);
-  editor.scrollTop = editor.scrollHeight * (matchIndex / editor.value.length);
+  
+  // Hacer scroll al texto seleccionado
+  // Calcular la línea aproximada del resultado
+  const textBeforeMatch = editor.value.substring(0, matchIndex);
+  const linesBefore = textBeforeMatch.split('\n').length;
+  const lineHeight = 20; // Altura aproximada de línea en pixels
+  const editorHeight = editor.clientHeight;
+  
+  // Calcular scroll para centrar el resultado
+  const scrollTarget = (linesBefore * lineHeight);// - (editorHeight / 2);
+  editor.scrollTop = Math.max(0, scrollTarget);
+  
+  // NO hacer focus en el editor - mantener foco en el modal
+  //editor.focus();
 }
 
 // Reemplazar siguiente
@@ -231,38 +245,30 @@ function replaceAll() {
 
 // Configurar listeners de buscar y reemplazar
 function setupFindReplaceListeners() {
-  const findInput = document.getElementById('input-find');
-  const replaceInput = document.getElementById('input-replace');
   const caseSensitiveCheck = document.getElementById('check-case-sensitive');
   const wholeWordCheck = document.getElementById('check-whole-word');
   
-  // Realizar búsqueda al escribir o cambiar opciones
-  findInput.addEventListener('input', performFind);
-  caseSensitiveCheck.addEventListener('change', performFind);
-  wholeWordCheck.addEventListener('change', performFind);
+  // Los checkboxes solo actualizan su estado, no ejecutan búsqueda automática
+  // El usuario debe presionar el botón "Buscar" manualmente
   
-  // Enter en buscar = ir a siguiente
-  findInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (findMatches.length > 0) {
-        currentMatchIndex = (currentMatchIndex + 1) % findMatches.length;
-        highlightMatch();
+  // Botón Buscar - ejecuta la búsqueda
+  document.getElementById('btn-find').addEventListener('click', performFind);
+  
+  // Botones de reemplazo
+  document.getElementById('btn-replace-one').addEventListener('click', replaceNext);
+  document.getElementById('btn-replace-all').addEventListener('click', replaceAll);
+  
+  // ESC para cerrar el modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const modal = document.getElementById('modal-find-replace');
+      if (!modal.classList.contains('hidden')) {
+        closeModal('modal-find-replace');
+        findMatches = [];
+        currentMatchIndex = -1;
       }
     }
   });
-  
-  // Enter en reemplazar = reemplazar siguiente
-  replaceInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      replaceNext();
-    }
-  });
-  
-  // Botones
-  document.getElementById('btn-replace-one').addEventListener('click', replaceNext);
-  document.getElementById('btn-replace-all').addEventListener('click', replaceAll);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
