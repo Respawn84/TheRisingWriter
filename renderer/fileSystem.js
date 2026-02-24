@@ -1,13 +1,26 @@
 // === SISTEMA DE ARCHIVOS ===
 
+//const { state } = require("./state");
+
 // Cargar proyecto
 async function loadProject(path) {
   state.projectPath = path;
-  const tree = document.getElementById('file-tree');
-  tree.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   
-  const items = await window.electronAPI.readDirectory(path);
-  renderFileTree(tree, items);
+  // Cargar o crear proyecto JSON
+  await loadOrCreateProject(path);
+
+  // Leer directorio
+  
+  const items = await window.electronAPI.readDirectory(state.projectRootPath);
+  
+  // Filtrar según proyecto
+  const filteredItems = filterTreeByProject(items);
+  
+  // Obtener contenedor del árbol
+  const fileTree = document.getElementById('file-tree');
+  
+  // Renderizar
+  renderFileTree(fileTree, filteredItems, 0);
 }
 
 // Renderizar árbol de archivos
@@ -30,7 +43,20 @@ function createFolderElement(folder, level) {
   const el = document.createElement('div');
   el.className = 'folder-item collapsed';
   el.style.paddingLeft = `${level * 12 + 8}px`;
-  el.innerHTML = `<span class="folder-icon"></span><span>${folder.name}</span>`;
+
+  // Obtener tipo de directorio (si está marcado)
+  const tipo = getDirectoryTypeFromPath(folder.path);
+  let badgeHTML = '';
+
+  // Si está marcado, agregar badge
+  if (tipo) {
+    const badge = getTypeBadge(tipo);
+    badgeHTML = `<span class="dir-badge" style="color: ${badge.color}" title="${tipo}">${badge.icon}</span>`;
+  }else {
+    badgeHTML = '';
+  }
+
+  el.innerHTML = `<span class="folder-icon">${badgeHTML}</span><span>${folder.name}</span>`;
   el.dataset.path = folder.path;
   
   el.addEventListener('click', async (e) => {
@@ -139,6 +165,12 @@ function showFileContextMenu(e, item) {
     } else {
       newFileBtn.style.display = 'none';
     }
+  }
+  // Actualizar opciones de marcado si es directorio
+  if (item.isDirectory) {
+    updateContextMenuForDirectory(item.path);
+  } else {
+    document.getElementById('menu-mark-section').style.display = 'none';
   }
 }
 
@@ -257,6 +289,10 @@ function setupFileSystemListeners() {
         openDeleteModal();
       } else if (action === 'open-split') {
         openInSplit(state.itemToRename);
+      }else if (action === 'unmark') {
+        if (state.itemToRename?.path) {
+          unmarkDirectory(state.itemToRename.path);
+        }
       }
     });
   });

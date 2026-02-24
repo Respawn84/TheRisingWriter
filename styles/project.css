@@ -1,0 +1,82 @@
+/* ====================================
+   PROJECT STYLES
+   Estilos para badges y proyecto
+   ==================================== */
+
+/* Badge en nombre de carpeta */
+.dir-badge {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+
+/* Sección de marcado en menú contextual */
+#menu-mark-section {
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+}
+
+/* Estilos específicos del submenú de marcado */
+#mark-submenu {
+  z-index: 10001; /* Por encima del menú principal */
+}
+
+#mark-submenu .menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.9em;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-radius: var(--radius);
+  transition: background 0.2s;
+}
+
+#mark-submenu .menu-item:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Flecha del submenú */
+.menu-item.submenu .arrow {
+  margin-left: auto;
+  font-size: 0.8em;
+  opacity: 0.6;
+}
+
+/* Modal grande para metadatos */
+.modal-large {
+  width: 500px;
+  max-width: 90vw;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 0.9em;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+}
+
+.modo-proyecto-fichero {
+  /*Estilo para indicar el modo de proyecto Visible o no visible*/
+  /*visibility: hidden; */
+}
+.modo-proyecto-carpeta {
+  /*Estilo para indicar el modo de proyecto Visible o no visible*/
+  /*visibility: visible; */
+}

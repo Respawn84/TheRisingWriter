@@ -6,6 +6,11 @@ function setupMainEventListeners() {
     loadProject(path);
   });
   
+  window.electronAPI.onProjectFileOpened((path) => {
+    //loadOrCreateProject(path);
+    loadProject(path);
+  });
+
   window.electronAPI.onSaveFile(() => {
     saveCurrentFile();
   });
@@ -23,6 +28,7 @@ function setupMainEventListeners() {
 function setupAllListeners() {
   setupMainEventListeners();
   checkAIStatus();
+  setupProjectListeners();
   setupTabsListeners();
   setupSplitListeners();
   setupFileSystemListeners();

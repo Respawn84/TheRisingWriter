@@ -1,17 +1,73 @@
 {
   "name": "the-rising-writer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Editor de escritura de novelas con IA",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev"
+    "dev": "electron . --dev",
+    "build": "./build.sh",
+    "build:arm64": "electron-builder --mac --arm64",
+    "build:x64": "electron-builder --mac --x64",
+    "build:all": "electron-builder --mac --arm64 --x64"
   },
-  "keywords": ["writing", "editor", "ai"],
-  "author": "Daniel",
+  "keywords": ["writing", "editor", "ai", "novela"],
+  "author": "Daniel Respawn",
   "license": "MIT",
+  "build": {
+    "appId": "com.danielrespawn.therisingwriter",
+    "productName": "The Rising Writer",
+    "copyright": "Copyright © 2024 Daniel Respawn",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dir",
+          "arch": ["arm64", "x64"]
+        }
+      ],
+      "icon": "assets/icon.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": null,
+      "entitlementsInherit": null
+    },
+    "dmg": {
+      "title": "The Rising Writer",
+      "icon": "assets/icon.icns",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 144,
+          "y": 180
+        },
+        {
+          "x": 396,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "files": [
+      "**/*",
+      "!**/*.md",
+      "!build.sh",
+      "!.gitignore",
+      "!.env",
+      "!README.md"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    }
+  },
   "devDependencies": {
-    "electron": "^33.2.0"
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",

@@ -1,0 +1,364 @@
+// ====================================
+// PROJECT MANAGER
+// Gestión de proyectos JSON
+// ====================================
+
+// === UTILIDADES ===
+
+// Obtener badge según tipo
+function getTypeBadge(tipo) {
+  const badges = {
+    capitulos: { icon: '📚', color: '#4a9eff' },
+    personajes: { icon: '👤', color: '#4ade80' },
+    tramas: { icon: '🎭', color: '#a855f7' },
+    mundo: { icon: '🌍', color: '#fb923c' },
+    papelera: { icon: '🗑️', color: '#ef4444' },
+    otro: { icon: '📂', color: '#94a3b8' }
+  };
+  return badges[tipo] || badges.otro;
+}
+
+// Verificar si hay directorios marcados
+function hasMarkedDirectories() {
+  if (!state.projectData) return false;
+  
+  const dirs = state.projectData.configuracion.directorios;
+  
+  // Verificar tipos específicos
+  const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
+  for (const tipo of tipos) {
+    if (dirs[tipo]?.ruta && dirs[tipo].ruta !== '') {
+      return true;
+    }
+  }
+  
+  // Verificar otros
+  if (dirs.otros && dirs.otros.length > 0) {
+    return true;
+  }
+  
+  return false;
+}
+
+// === CARGA DE PROYECTO ===
+
+// Cargar o crear proyecto
+async function loadOrCreateProject(dirPath) {
+  const result = await window.electronAPI.loadOrCreateProject(dirPath);
+  console.log('Resultado de loadOrCreateProject:', result);
+
+  if (dirPath.endsWith('.json')) {
+    //Si termina en .json, es un fichero, ajustar la ruta raíz del proyecto
+    dirPath = dirPath.substring(0, dirPath.lastIndexOf('/'));
+    state.projectRootPath = dirPath;
+    state.projectMode = 'json';
+  }else{
+    state.projectMode = 'folder';
+  }
+
+
+  if (result.success) {
+    state.projectJsonPath = result.path;
+    state.projectData = result.data;
+    state.projectRootPath = dirPath;
+    state.hasMarkedDirs = hasMarkedDirectories();
+    
+    if (state.projectMode === 'json') {
+      document.getElementById('modo-fichero').style.visibility = 'visible';
+      document.getElementById('modo-carpeta').style.visibility = 'hidden';
+    } else {
+      document.getElementById('modo-fichero').style.visibility = 'hidden';
+      document.getElementById('modo-carpeta').style.visibility = 'visible';
+    }
+    console.log(state);
+    if (!result.existed) {
+      showNotification('Proyecto creado: project.json');
+    }
+    
+    return true;
+  } else {
+    showNotification('Error al cargar proyecto: ' + result.error);
+    return false;
+  }
+}
+
+// === FILTRADO DE ÁRBOL ===
+
+// Filtrar árbol según directorios marcados
+function filterTreeByProject(items) {
+  if (!state.hasMarkedDirs) {
+    return items; // Sin filtro, mostrar todo
+  }
+
+  if (state.projectMode === 'folder') {
+    return items; // Modo carpeta, mostrar todo
+  }
+  
+  const dirs = state.projectData.configuracion.directorios;
+  const allowedPaths = new Set();
+  
+  // Recopilar rutas permitidas
+  const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
+  tipos.forEach(tipo => {
+    if (dirs[tipo]?.ruta && dirs[tipo].ruta !== '') {
+      allowedPaths.add(dirs[tipo].ruta);
+    }
+  });
+  
+  // Agregar otros
+  if (dirs.otros) {
+    dirs.otros.forEach(otro => {
+      if (otro.mostrar && otro.ruta !== '') {
+        allowedPaths.add(otro.ruta);
+      }
+    });
+  }
+  
+  // Filtrar items
+  return items.filter(item => allowedPaths.has(item.path));
+}
+
+// Obtener tipo de directorio
+function getDirectoryTypeFromPath(dirPath) {
+  if (!state.projectData) return null;
+  
+  const dirs = state.projectData.configuracion.directorios;
+  
+  // Buscar en tipos específicos
+  const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
+  for (const tipo of tipos) {
+    if (dirs[tipo]?.ruta === dirPath) {
+      return tipo;
+    }
+  }
+  
+  // Buscar en otros
+  if (dirs.otros) {
+    const found = dirs.otros.find(d => d.ruta === dirPath);
+    if (found) return 'otro';
+  }
+  
+  return null;
+}
+
+// === MARCADO DE DIRECTORIOS ===
+
+// Marcar directorio
+async function markDirectory(dirPath, tipo) {
+  if (!state.projectJsonPath) {
+    showNotification('No hay proyecto cargado');
+    return;
+  }
+  
+  const result = await window.electronAPI.markDirectory(
+    state.projectJsonPath,
+    dirPath,
+    tipo
+  );
+  
+  if (result.success) {
+    state.projectData = result.data;
+    state.hasMarkedDirs = hasMarkedDirectories();
+    
+    const badge = getTypeBadge(tipo);
+    showNotification(`Marcado como: ${badge.icon} ${tipo}`);
+    
+    // Recargar árbol
+    await loadProject(state.projectRootPath);
+  } else {
+    showNotification('Error al marcar directorio: ' + result.error);
+  }
+}
+
+// Desmarcar directorio
+async function unmarkDirectory(dirPath) {
+  if (!state.projectJsonPath) {
+    showNotification('No hay proyecto cargado');
+    return;
+  }
+  
+  const result = await window.electronAPI.unmarkDirectory(
+    state.projectJsonPath,
+    dirPath
+  );
+  
+  if (result.success) {
+    state.projectData = result.data;
+    state.hasMarkedDirs = hasMarkedDirectories();
+    
+    showNotification('Directorio desmarcado');
+    
+    // Recargar árbol
+    await loadProject(state.projectRootPath);
+  } else {
+    showNotification('Error al desmarcar: ' + result.error);
+  }
+}
+
+// === MODAL DE METADATOS ===
+
+// Abrir modal de metadatos
+function openProjectMetadataModal() {
+  if (!state.projectData) {
+    showNotification('No hay proyecto cargado');
+    return;
+  }
+  
+  // Cargar valores actuales
+  const proyecto = state.projectData.proyecto;
+  document.getElementById('project-title').value = proyecto.titulo || '';
+  document.getElementById('project-author').value = proyecto.autor || '';
+  document.getElementById('project-date').value = proyecto.fecha || '';
+  document.getElementById('project-saga').value = proyecto.saga || '';
+  document.getElementById('project-deadline').value = proyecto.fechaPrevista || '';
+  
+  const errorDiv = document.getElementById('project-metadata-error');
+  errorDiv.classList.add('hidden');
+  
+  openModal('modal-project-metadata');
+}
+
+// Guardar metadatos
+async function saveProjectMetadata() {
+  if (!state.projectData || !state.projectJsonPath) return;
+  
+  // Actualizar datos
+  state.projectData.proyecto.titulo = document.getElementById('project-title').value;
+  state.projectData.proyecto.autor = document.getElementById('project-author').value;
+  state.projectData.proyecto.fecha = document.getElementById('project-date').value;
+  state.projectData.proyecto.saga = document.getElementById('project-saga').value;
+  state.projectData.proyecto.fechaPrevista = document.getElementById('project-deadline').value;
+  
+  // Guardar JSON
+  const result = await window.electronAPI.saveProjectJson(
+    state.projectJsonPath,
+    state.projectData
+  );
+  
+  if (result.success) {
+    closeModal('modal-project-metadata');
+    showNotification('Metadatos guardados');
+  } else {
+    const errorDiv = document.getElementById('project-metadata-error');
+    errorDiv.textContent = 'Error al guardar: ' + result.error;
+    errorDiv.classList.remove('hidden');
+  }
+}
+
+// === MENÚ CONTEXTUAL ===
+
+// Mostrar/ocultar opción de desmarcar
+async function updateContextMenuForDirectory(dirPath) {
+  const markSection = document.getElementById('menu-mark-section');
+  const unmarkBtn = markSection.querySelector('[data-action="unmark"]');
+  
+  if (!state.projectJsonPath) {
+    markSection.style.display = 'none';
+    return;
+  }
+  
+  markSection.style.display = 'block';
+  
+  // Verificar si está marcado
+  const tipo = getDirectoryTypeFromPath(dirPath);
+  
+  if (tipo) {
+    unmarkBtn.style.display = 'block';
+  } else {
+    unmarkBtn.style.display = 'none';
+  }
+}
+
+// Manejar submenú de marcado
+function setupMarkSubmenu() {
+  const markButton = document.querySelector('[data-action="mark-as"]');
+  const submenu = document.getElementById('mark-submenu');
+  const contextMenu = document.getElementById('file-context-menu');
+  
+  if (!markButton || !submenu) return;
+  
+  let hideTimeout = null;
+  
+  // Mostrar submenú al entrar en el botón
+  markButton.addEventListener('mouseenter', () => {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      hideTimeout = null;
+    }
+    
+    const rect = markButton.getBoundingClientRect();
+    submenu.style.left = rect.right + 'px';
+    submenu.style.top = rect.top + 'px';
+    submenu.classList.remove('hidden');
+  });
+  
+  // Ocultar submenú al salir del botón (con delay)
+  markButton.addEventListener('mouseleave', () => {
+    hideTimeout = setTimeout(() => {
+      submenu.classList.add('hidden');
+    }, 300);
+  });
+  
+  // Cancelar ocultación al entrar en el submenú
+  submenu.addEventListener('mouseenter', () => {
+    if (hideTimeout) {
+      clearTimeout(hideTimeout);
+      hideTimeout = null;
+    }
+  });
+  
+  // Ocultar al salir del submenú
+  submenu.addEventListener('mouseleave', () => {
+    submenu.classList.add('hidden');
+  });
+  
+  // Ocultar ambos menús al hacer clic fuera
+  document.addEventListener('click', (e) => {
+    if (!contextMenu.contains(e.target) && !submenu.contains(e.target)) {
+      contextMenu.classList.add('hidden');
+      submenu.classList.add('hidden');
+    }
+  });
+}
+
+// === LISTENERS ===
+
+function setupProjectListeners() {
+  // Botón de metadatos
+  document.getElementById('btn-project-metadata')?.addEventListener('click', openProjectMetadataModal);
+  
+  // Guardar metadatos
+  document.getElementById('btn-save-metadata')?.addEventListener('click', saveProjectMetadata);
+  
+  // Submenú de marcado
+  setupMarkSubmenu();
+  
+  // Opciones de tipo en submenú
+  document.querySelectorAll('#mark-submenu .menu-item').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const tipo = btn.dataset.type;
+      if (state.itemToRename?.path && state.itemToRename?.isDirectory) {
+        await markDirectory(state.itemToRename.path, tipo);
+        document.getElementById('file-context-menu').classList.add('hidden');
+        document.getElementById('mark-submenu').classList.add('hidden');
+      }
+    });
+  });
+}
+
+// === EXPORTS ===
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    loadOrCreateProject,
+    filterTreeByProject,
+    getDirectoryTypeFromPath,
+    markDirectory,
+    unmarkDirectory,
+    openProjectMetadataModal,
+    saveProjectMetadata,
+    updateContextMenuForDirectory,
+    setupProjectListeners,
+    getTypeBadge
+  };
+}

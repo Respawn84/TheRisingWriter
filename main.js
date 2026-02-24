@@ -37,6 +37,11 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+O',
           click: openProjectFolder
         },
+        {
+          label: 'Abrir proyecto...',
+          accelerator: 'CmdOrCtrl+P',
+          click: openProjectFile
+        },        
         { type: 'separator' },
         {
           label: 'Guardar',
@@ -99,6 +104,19 @@ async function openProjectFolder() {
 
   if (!result.canceled && result.filePaths.length > 0) {
     mainWindow.webContents.send('project-folder-opened', result.filePaths[0]);
+  }
+}
+
+async function openProjectFile() {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    title: 'Seleccionar fichero del proyecto', 
+  },
+  [{ name: 'Fichero de Proyecto', extensions: ['json'] }] //Filtro de extensiones
+);
+
+  if (!result.canceled && result.filePaths.length > 0) {
+    mainWindow.webContents.send('project-file-opened', result.filePaths[0]);
   }
 }
 
@@ -263,6 +281,176 @@ ipcMain.handle('list-folders', async (event, dirPath) => {
   } catch (error) {
     console.error('Error listando carpetas:', error);
     return [];
+  }
+});
+
+
+// === IPC HANDLERS - GESTION DE PROYECTOS ===
+// Handler: Cargar o crear proyecto JSON
+ipcMain.handle('load-or-create-project', async (event, dirPath) => {
+  try {
+    if (dirPath.endsWith('.json')) {
+      // Si se pasa un fichero JSON directamente, usar esa ruta
+      dirPath = dirPath;
+    }else{
+      // Si se pasa una carpeta, usar project.json dentro de esa carpeta
+      dirPath = path.join(dirPath, 'project.json');
+    }
+    
+    const jsonPath = dirPath; // Ahora se pasa directamente la ruta del fichero JSON
+    // Intentar leer el JSON existente
+    try {
+      const content = await fs.readFile(jsonPath, 'utf-8');
+      const data = JSON.parse(content);
+      return { 
+        success: true, 
+        path: jsonPath, 
+        data: data,
+        existed: true 
+      };
+    } catch (readError) {
+      // No existe, crear uno nuevo
+      const emptyProject = {
+        version: "1.0",
+        proyecto: {
+          titulo: "",
+          autor: "",
+          fecha: new Date().toISOString().split('T')[0],
+          saga: "",
+          fechaPrevista: ""
+        },
+        configuracion: {
+          directorios: {
+            capitulos: { ruta: "", compilar: true },
+            personajes: { ruta: "", compilar: false },
+            tramas: { ruta: "", compilar: false },
+            mundo: { ruta: "", compilar: false },
+            papelera: { ruta: "", compilar: false },
+            otros: []
+          },
+          compilarDirectorios: [],
+          omitirEscenas: []
+        }
+      };
+      
+      await fs.writeFile(jsonPath, JSON.stringify(emptyProject, null, 2), 'utf-8');
+      
+      return { 
+        success: true, 
+        path: jsonPath, 
+        data: emptyProject,
+        existed: false 
+      };
+    }
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler: Guardar proyecto JSON
+ipcMain.handle('save-project-json', async (event, jsonPath, data) => {
+  try {
+    await fs.writeFile(jsonPath, JSON.stringify(data, null, 2), 'utf-8');
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler: Marcar directorio
+ipcMain.handle('mark-directory', async (event, jsonPath, dirPath, tipo) => {
+  try {
+    // Leer JSON actual
+    const content = await fs.readFile(jsonPath, 'utf-8');
+    const data = JSON.parse(content);
+    
+    // Actualizar directorio según tipo
+    if (tipo === 'otro') {
+      // Agregar a array de otros
+      if (!data.configuracion.directorios.otros) {
+        data.configuracion.directorios.otros = [];
+      }
+      
+      // Verificar si ya existe
+      const exists = data.configuracion.directorios.otros.find(d => d.ruta === dirPath);
+      if (!exists) {
+        data.configuracion.directorios.otros.push({
+          ruta: dirPath,
+          mostrar: true
+        });
+      }
+    } else {
+      // Actualizar tipo específico
+      if (!data.configuracion.directorios[tipo]) {
+        data.configuracion.directorios[tipo] = { ruta: "", compilar: false };
+      }
+      data.configuracion.directorios[tipo].ruta = dirPath;
+    }
+    
+    // Guardar
+    await fs.writeFile(jsonPath, JSON.stringify(data, null, 2), 'utf-8');
+    
+    return { success: true, data: data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler: Desmarcar directorio
+ipcMain.handle('unmark-directory', async (event, jsonPath, dirPath) => {
+  try {
+    const content = await fs.readFile(jsonPath, 'utf-8');
+    const data = JSON.parse(content);
+    
+    // Buscar y limpiar en tipos específicos
+    const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
+    for (const tipo of tipos) {
+      if (data.configuracion.directorios[tipo]?.ruta === dirPath) {
+        data.configuracion.directorios[tipo].ruta = "";
+      }
+    }
+    
+    // Quitar de array otros
+    if (data.configuracion.directorios.otros) {
+      data.configuracion.directorios.otros = data.configuracion.directorios.otros.filter(
+        d => d.ruta !== dirPath
+      );
+    }
+    
+    // Guardar
+    await fs.writeFile(jsonPath, JSON.stringify(data, null, 2), 'utf-8');
+    
+    return { success: true, data: data };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler: Obtener tipo de directorio
+ipcMain.handle('get-directory-type', async (event, jsonPath, dirPath) => {
+  try {
+    const content = await fs.readFile(jsonPath, 'utf-8');
+    const data = JSON.parse(content);
+    
+    // Buscar en tipos específicos
+    const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
+    for (const tipo of tipos) {
+      if (data.configuracion.directorios[tipo]?.ruta === dirPath) {
+        return { success: true, type: tipo };
+      }
+    }
+    
+    // Buscar en otros
+    if (data.configuracion.directorios.otros) {
+      const found = data.configuracion.directorios.otros.find(d => d.ruta === dirPath);
+      if (found) {
+        return { success: true, type: 'otro' };
+      }
+    }
+    
+    return { success: true, type: null };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 });
 

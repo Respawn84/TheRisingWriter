@@ -13,7 +13,7 @@
       <span id="file-indicator">Sin archivo</span>
     </div>
     <div class="toolbar-center">
-      <h1>The Rising Editor</h1>
+      <h1><span id="modo-fichero" class="modo-proyecto-fichero">📄</span><span class="modo-proyecto-carpeta" id="modo-carpeta">📁</span></h1>
     </div>
     <div class="toolbar-right">
       <button id="btn-stats" class="btn-icon" title="Estadísticas">📈</button>
@@ -29,7 +29,8 @@
     <div id="sidebar">
       <div class="sidebar-header">
         <h3>📁 Proyecto</h3>
-        <button id="btn-open" class="btn-icon" title="Abrir">📂</button>
+        <button id="btn-project-metadata" class="btn-icon" title="Abrir Proyecto">📋</button>
+        <button id="btn-open" class="btn-icon" title="Abrir Carpeta">📂</button>
         <button id="btn-new-file" class="btn-icon" title="Nuevo archivo">📄</button>
         <button id="btn-new-folder" class="btn-icon" title="Nueva carpeta">➕</button>
       </div>
@@ -147,9 +148,16 @@
       <button class="menu-item" data-action="open-split" data-file-only="true">
         <span>⫽</span> Abrir en split derecho
       </button>
-      <div class="menu-divider"></div>
     </div>
     <div class="menu-divider"></div>
+    <div class="menu-section" id="menu-mark-section">
+      <button class="menu-item submenu" data-action="mark-as">
+        <span>📋</span> Marcar como... <span class="arrow">▶</span>
+      </button>
+      <button class="menu-item" data-action="unmark">
+        <span>❌</span> Desmarcar
+      </button>
+    </div>
     <div class="menu-section">
       <button class="menu-item" data-action="rename">
         <span>✏️</span> Renombrar
@@ -161,6 +169,27 @@
         <span>🗑️</span> Borrar
       </button>
     </div>
+  </div>
+  <!-- Submenú de marcado -->
+  <div id="mark-submenu" class="hidden">
+    <button class="menu-item" data-type="capitulos">
+      <span>📚</span> Capítulos
+    </button>
+    <button class="menu-item" data-type="personajes">
+      <span>👤</span> Personajes
+    </button>
+    <button class="menu-item" data-type="tramas">
+      <span>🎭</span> Tramas
+    </button>
+    <button class="menu-item" data-type="mundo">
+      <span>🌍</span> Worldbuilding
+    </button>
+    <button class="menu-item" data-type="papelera">
+      <span>🗑️</span> Papelera
+    </button>
+    <button class="menu-item" data-type="otro">
+      <span>📂</span> Otro
+    </button>
   </div>
 
   <!-- Modals -->
@@ -280,6 +309,46 @@
     </div>
   </div>
 
+  <!-- Modal: Metadatos del Proyecto -->
+  <div id="modal-project-metadata" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>⚙️ Metadatos del Proyecto</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Título:</label>
+          <input type="text" id="project-title" class="modal-input" placeholder="Título de la novela">
+        </div>
+        <div class="form-group">
+          <label>Autor:</label>
+          <input type="text" id="project-author" class="modal-input" placeholder="Nombre del autor">
+        </div>
+        <div class="form-group">
+          <label>Fecha de inicio:</label>
+          <input type="date" id="project-date" class="modal-input">
+        </div>
+        <div class="form-group">
+          <label>Saga:</label>
+          <input type="text" id="project-saga" class="modal-input" placeholder="Nombre de la saga (opcional)">
+        </div>
+        <div class="form-group">
+          <label>Fecha prevista de finalización:</label>
+          <input type="date" id="project-deadline" class="modal-input">
+        </div>
+        <div id="project-metadata-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-save-metadata" class="btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+
+
   <div id="modal-stats" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content modal-large">
@@ -380,6 +449,7 @@
 
   <!-- Cargar módulos en orden de dependencias -->
 <script src="renderer/state.js"></script>
+  <script src="renderer/projectManager.js"></script>
   <script src="renderer/tabs.js"></script>
   <script src="renderer/split.js"></script>
   <script src="renderer/fileSystem.js"></script>

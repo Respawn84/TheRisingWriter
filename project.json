@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "proyecto": {
+    "titulo": "",
+    "autor": "",
+    "fecha": "",
+    "saga": "",
+    "fechaPrevista": ""
+  },
+  "configuracion": {
+    "directorios": {
+      "capitulos": {
+        "ruta": "",
+        "compilar": true
+      },
+      "personajes": {
+        "ruta": "",
+        "compilar": false
+      },
+      "tramas": {
+        "ruta": "",
+        "compilar": false
+      },
+      "mundo": {
+        "ruta": "",
+        "compilar": false
+      },
+      "papelera": {
+        "ruta": "",
+        "compilar": false
+      },
+      "otros": []
+    },
+    "compilarDirectorios": [],
+    "omitirEscenas": []
+  }
+}

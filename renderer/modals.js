@@ -12,6 +12,7 @@ function openModal(modalId) {
   if (modalId === 'modal-new-file') prepareNewFileModal();
   if (modalId === 'modal-move') prepareMoveModal();
   if (modalId === 'modal-find-replace') prepareFindReplaceModal();
+  if (modalId === 'modal-project-metadata') openProjectMetadataModal();
 }
 
 // Cerrar modal

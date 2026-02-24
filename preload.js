@@ -13,6 +13,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   moveItem: (itemPath, destinationFolder) => ipcRenderer.invoke('move-item', itemPath, destinationFolder),
   listFolders: (dirPath) => ipcRenderer.invoke('list-folders', dirPath),
   
+   // === PROJECT MANAGEMENT ===
+  loadOrCreateProject: (dirPath) => ipcRenderer.invoke('load-or-create-project', dirPath),
+  saveProjectJson: (jsonPath, data) => ipcRenderer.invoke('save-project-json', jsonPath, data),
+  markDirectory: (jsonPath, dirPath, tipo) => ipcRenderer.invoke('mark-directory', jsonPath, dirPath, tipo),
+  unmarkDirectory: (jsonPath, dirPath) => ipcRenderer.invoke('unmark-directory', jsonPath, dirPath),
+  getDirectoryType: (jsonPath, dirPath) => ipcRenderer.invoke('get-directory-type', jsonPath, dirPath),
+  
   // Claude AI
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
   callClaude: (params) => ipcRenderer.invoke('call-claude', params),
@@ -25,6 +32,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Eventos del main
   onProjectFolderOpened: (callback) => ipcRenderer.on('project-folder-opened', (_, path) => callback(path)),
+  onProjectFileOpened: (callback) => ipcRenderer.on('project-file-opened', (_, path) => callback(path)),
   onSaveFile: (callback) => ipcRenderer.on('save-file', callback),
   onShowUsageStats: (callback) => ipcRenderer.on('show-usage-stats', callback),
   onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback)

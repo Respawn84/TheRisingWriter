@@ -13,7 +13,13 @@ const state = {
    openTabs: [],        // Array de { name, path, content }
    activeTabIndex: -1,  // Índice de pestaña activa
    splitActive: false,  // Si split está activo
-   splitFile: null      // Path del archivo en split derecho
+   splitFile: null,     // Path del archivo en split derecho
+   // Proyecto JSON
+  projectJsonPath: null,      // Path completo al .project.json
+  projectData: null,          // Datos del JSON parseado
+  hasMarkedDirs: false,       // true si hay directorios marcados
+  projectRootPath: null,       // Carpeta raíz del proyecto
+  projectMode : "folder"      // "folder" o "json"
  };
 
 // Verificación del estado de IA
