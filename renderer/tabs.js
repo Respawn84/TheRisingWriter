@@ -2,15 +2,17 @@
 
 // Abrir archivo en pestaña nueva o activar existente
 function openTab(file) {
+  window.electronAPI.saveLastFile(file.path);
+
   // Buscar si ya existe
   const existingIndex = state.openTabs.findIndex(tab => tab.path === file.path);
-  
+
   if (existingIndex !== -1) {
     // Ya existe, solo activarla
     activateTab(existingIndex);
     return;
   }
-  
+
   // Crear nueva pestaña
   const newTab = {
     name: file.name,
@@ -18,10 +20,10 @@ function openTab(file) {
     content: '',
     hasChanges: false
   };
-  
+
   state.openTabs.push(newTab);
   state.activeTabIndex = state.openTabs.length - 1;
-  
+
   renderTabs();
   loadTabContent(state.activeTabIndex);
 }

@@ -372,6 +372,64 @@ function setupProjectListeners() {
   });
 }
 
+// === ESTADÍSTICAS DE CAPÍTULO ===
+
+function isChapterFolder(folderPath) {
+  if (!state.projectData) return false;
+  const capitulosRuta = state.projectData.configuracion.directorios.capitulos?.ruta;
+  if (!capitulosRuta) return false;
+  const parentPath = folderPath.substring(0, folderPath.lastIndexOf('/'));
+  return parentPath === capitulosRuta;
+}
+
+async function openChapterStats(folderPath) {
+  const cached = state.projectData?.configuracion?.estadisticas?.capitulos?.[folderPath];
+  if (cached) {
+    showChapterStatsModal(folderPath, cached);
+  } else {
+    await calculateAndShowChapterStats(folderPath);
+  }
+}
+
+async function calculateAndShowChapterStats(folderPath) {
+  const result = await window.electronAPI.calculateChapterStats(folderPath);
+  if (!result.success) {
+    showNotification('Error al calcular estadísticas: ' + result.error);
+    return;
+  }
+
+  const stats = {
+    escenas: result.scenes,
+    palabras: result.totalWords,
+    mediaEscena: result.avgWordsPerScene,
+    calculado: new Date().toISOString().split('T')[0]
+  };
+
+  if (state.projectData && state.projectJsonPath) {
+    if (!state.projectData.configuracion.estadisticas) {
+      state.projectData.configuracion.estadisticas = {};
+    }
+    if (!state.projectData.configuracion.estadisticas.capitulos) {
+      state.projectData.configuracion.estadisticas.capitulos = {};
+    }
+    state.projectData.configuracion.estadisticas.capitulos[folderPath] = stats;
+    await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
+  }
+
+  showChapterStatsModal(folderPath, stats);
+}
+
+function showChapterStatsModal(folderPath, stats) {
+  const name = folderPath.split('/').pop();
+  document.getElementById('chapter-stats-name').textContent = name;
+  document.getElementById('chapter-stat-scenes').textContent = stats.escenas;
+  document.getElementById('chapter-stat-words').textContent = stats.palabras.toLocaleString('es-ES');
+  document.getElementById('chapter-stat-avg').textContent = stats.mediaEscena.toLocaleString('es-ES');
+  document.getElementById('chapter-stats-date').textContent = stats.calculado ? `Calculado el ${stats.calculado}` : '';
+  document.getElementById('btn-recalculate-stats').onclick = () => calculateAndShowChapterStats(folderPath);
+  openModal('modal-chapter-stats');
+}
+
 // === EXPORTS ===
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -385,6 +443,8 @@ if (typeof module !== 'undefined' && module.exports) {
     saveProjectMetadata,
     updateContextMenuForDirectory,
     setupProjectListeners,
-    getTypeBadge
+    getTypeBadge,
+    isChapterFolder,
+    openChapterStats
   };
 }

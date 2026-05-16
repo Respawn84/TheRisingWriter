@@ -172,6 +172,10 @@ function showFileContextMenu(e, item) {
   if (exportBtn) {
     exportBtn.style.display = item.isDirectory ? 'flex' : 'none';
   }
+  const chapterStatsBtn = menu.querySelector('[data-action="chapter-stats"]');
+  if (chapterStatsBtn) {
+    chapterStatsBtn.style.display = item.isDirectory && isChapterFolder(item.path) ? 'flex' : 'none';
+  }
   // Actualizar opciones de marcado si es directorio
   if (item.isDirectory) {
     updateContextMenuForDirectory(item.path);
@@ -302,6 +306,10 @@ function setupFileSystemListeners() {
       } else if (action === 'unmark') {
         if (state.itemToRename?.path) {
           unmarkDirectory(state.itemToRename.path);
+        }
+      } else if (action === 'chapter-stats') {
+        if (state.itemToRename?.path) {
+          openChapterStats(state.itemToRename.path);
         }
       }
     });
