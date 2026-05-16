@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listFolders: (dirPath) => ipcRenderer.invoke('list-folders', dirPath),
   
    // === PROJECT MANAGEMENT ===
+  exportToDocx: (capitulosPath) => ipcRenderer.invoke('export-to-docx', capitulosPath),
   loadOrCreateProject: (dirPath) => ipcRenderer.invoke('load-or-create-project', dirPath),
   saveProjectJson: (jsonPath, data) => ipcRenderer.invoke('save-project-json', jsonPath, data),
   markDirectory: (jsonPath, dirPath, tipo) => ipcRenderer.invoke('mark-directory', jsonPath, dirPath, tipo),

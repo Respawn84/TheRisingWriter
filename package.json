@@ -71,6 +71,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
-    "dotenv": "^16.4.0"
+    "dotenv": "^16.4.0",
+    "docx": "^8.5.0"
   }
 }

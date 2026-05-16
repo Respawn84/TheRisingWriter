@@ -559,6 +559,77 @@ ipcMain.handle('call-claude', async (event, { selectedText, action }) => {
   }
 });
 
+// === EXPORT TO DOCX ===
+
+ipcMain.handle('export-to-docx', async (event, capitulosPath) => {
+  try {
+    const { Document, Packer, Paragraph, HeadingLevel, PageBreak, TextRun } = require('docx');
+
+    // Diálogo para guardar
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: 'Exportar a Word',
+      defaultPath: path.join(capitulosPath, '..', 'novela.docx'),
+      filters: [{ name: 'Word Document', extensions: ['docx'] }]
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    // Leer capítulos ordenados
+    const capEntries = await fs.readdir(capitulosPath, { withFileTypes: true });
+    const capDirs = capEntries
+      .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    const children = [];
+
+    for (const capDir of capDirs) {
+      // Salto de página antes de cada capítulo (excepto el primero)
+      if (children.length > 0) {
+        children.push(new Paragraph({ children: [new PageBreak()] }));
+      }
+
+      // Título de capítulo - Heading 1
+      children.push(new Paragraph({ text: capDir.name, heading: HeadingLevel.HEADING_1 }));
+
+      // Leer escenas ordenadas
+      const capPath = path.join(capitulosPath, capDir.name);
+      const sceneEntries = await fs.readdir(capPath, { withFileTypes: true });
+      const scenes = sceneEntries
+        .filter(e => e.isFile() && !e.name.startsWith('.') && e.name.endsWith('.txt'))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+      for (let i = 0; i < scenes.length; i++) {
+        const scene = scenes[i];
+        const sceneName = scene.name.replace(/^\d+-/, '').replace(/\.txt$/, '');
+
+        // Nombre de escena - Heading 2
+        children.push(new Paragraph({ text: sceneName, heading: HeadingLevel.HEADING_2 }));
+
+        // Contenido de la escena
+        const content = await fs.readFile(path.join(capPath, scene.name), 'utf-8');
+        const lines = content.split('\n');
+        for (const line of lines) {
+          children.push(new Paragraph({ text: line.trim() }));
+        }
+
+        // Separador entre escenas (no después de la última)
+        if (i < scenes.length - 1) {
+          children.push(new Paragraph({ text: '* * *', alignment: 'center' }));
+        }
+      }
+    }
+
+    const doc = new Document({ sections: [{ children }] });
+    const buffer = await Packer.toBuffer(doc);
+    await fs.writeFile(filePath, buffer);
+
+    return { success: true, path: filePath };
+  } catch (error) {
+    console.error('Error exportando DOCX:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 // === APP LIFECYCLE ===
 
 app.whenReady().then(createWindow);

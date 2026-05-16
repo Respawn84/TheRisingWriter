@@ -157,14 +157,14 @@ function showFileContextMenu(e, item) {
   
   state.itemToRename = item;
   
-  // Mostrar/ocultar "Nuevo archivo aquí" solo para carpetas
+  // Mostrar/ocultar botones solo para carpetas / solo para archivos
   const newFileBtn = menu.querySelector('[data-action="new-file-here"]');
   if (newFileBtn) {
-    if (item.isDirectory) {
-      newFileBtn.style.display = 'flex';
-    } else {
-      newFileBtn.style.display = 'none';
-    }
+    newFileBtn.style.display = item.isDirectory ? 'flex' : 'none';
+  }
+  const exportBtn = menu.querySelector('[data-action="export-docx"]');
+  if (exportBtn) {
+    exportBtn.style.display = item.isDirectory ? 'flex' : 'none';
   }
   // Actualizar opciones de marcado si es directorio
   if (item.isDirectory) {
@@ -289,7 +289,9 @@ function setupFileSystemListeners() {
         openDeleteModal();
       } else if (action === 'open-split') {
         openInSplit(state.itemToRename);
-      }else if (action === 'unmark') {
+      } else if (action === 'export-docx') {
+        exportFolderToDocx(state.itemToRename.path);
+      } else if (action === 'unmark') {
         if (state.itemToRename?.path) {
           unmarkDirectory(state.itemToRename.path);
         }
