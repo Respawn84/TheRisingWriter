@@ -44,6 +44,7 @@ function hideSplit() {
 
 // Abrir archivo en split derecho
 async function openInSplit(file) {
+  cancelPendingMetadataRender(); // cancela cualquier carga de metadatos en vuelo
   state.splitFile = file.path;
   
   // Activar split si no está activo

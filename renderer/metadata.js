@@ -1,6 +1,15 @@
 // === PANEL DE METADATOS DE CAPÍTULO ===
 
+// Contador de generación: cualquier carga de fichero en el split lo incrementa,
+// cancelando renders de metadatos que lleguen tarde (race condition).
+function cancelPendingMetadataRender() {
+  state.metaLoadGen = (state.metaLoadGen || 0) + 1;
+}
+
 async function openSceneMetadataPanel(file) {
+  cancelPendingMetadataRender();
+  const gen = state.metaLoadGen;
+
   state.splitMetadataFolder = file.path;
   state.splitFile = null;
 
@@ -20,6 +29,8 @@ async function openSceneMetadataPanel(file) {
     loadAllScenes()
   ]);
 
+  if (state.metaLoadGen !== gen) return; // otra operación tomó el split — cancelar
+
   const existing = getChapterMetadata(file.path);
 
   editor.innerHTML = renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, null, false);
@@ -28,6 +39,9 @@ async function openSceneMetadataPanel(file) {
 }
 
 async function openChapterMetadataPanel(folder) {
+  cancelPendingMetadataRender();
+  const gen = state.metaLoadGen;
+
   state.splitMetadataFolder = folder.path;
   state.splitFile = null;
 
@@ -47,6 +61,8 @@ async function openChapterMetadataPanel(folder) {
     loadAllScenes(),
     computeWordStats(folder.path)
   ]);
+
+  if (state.metaLoadGen !== gen) return; // otra operación tomó el split — cancelar
 
   const existing = getChapterMetadata(folder.path);
 
