@@ -341,6 +341,16 @@
           <label>Fecha prevista de finalización:</label>
           <input type="date" id="project-deadline" class="modal-input">
         </div>
+        <div class="form-group">
+          <label>Imagen de portada:</label>
+          <div class="cover-field">
+            <input type="text" id="project-cover" class="modal-input" placeholder="Sin portada seleccionada" readonly>
+            <button id="btn-select-cover" class="btn-secondary btn-cover-pick">Seleccionar...</button>
+          </div>
+          <div id="cover-preview-wrap" class="cover-preview-wrap hidden">
+            <img id="cover-preview" class="cover-preview" src="" alt="Portada"/>
+          </div>
+        </div>
         <div id="project-metadata-error" class="error hidden"></div>
       </div>
       <div class="modal-footer">

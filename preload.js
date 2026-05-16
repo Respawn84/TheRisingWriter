@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    // === PROJECT MANAGEMENT ===
   exportToDocx: (capitulosPath) => ipcRenderer.invoke('export-to-docx', capitulosPath),
   exportToEpub: (params) => ipcRenderer.invoke('export-to-epub', params),
+  openImageDialog: () => ipcRenderer.invoke('open-image-dialog'),
   loadOrCreateProject: (dirPath) => ipcRenderer.invoke('load-or-create-project', dirPath),
   saveProjectJson: (jsonPath, data) => ipcRenderer.invoke('save-project-json', jsonPath, data),
   markDirectory: (jsonPath, dirPath, tipo) => ipcRenderer.invoke('mark-directory', jsonPath, dirPath, tipo),

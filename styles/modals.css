@@ -172,6 +172,45 @@
   color: var(--text-secondary);
 }
 
+/* === CAMPO DE PORTADA === */
+
+.cover-field {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.cover-field .modal-input {
+  flex: 1;
+  margin-bottom: 0;
+  cursor: default;
+  color: var(--text-secondary);
+}
+
+.btn-cover-pick {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cover-preview-wrap {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.cover-preview-wrap.hidden {
+  display: none;
+}
+
+.cover-preview {
+  max-height: 180px;
+  max-width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  object-fit: contain;
+}
+
 /* === MODAL BUSCAR Y REEMPLAZAR (POSICIONADO ABAJO DERECHA) === */
 
 #modal-find-replace {
