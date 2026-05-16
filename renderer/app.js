@@ -5,10 +5,18 @@ function setupMainEventListeners() {
   window.electronAPI.onProjectFolderOpened((path) => {
     loadProject(path);
   });
-  
+
   window.electronAPI.onProjectFileOpened((path) => {
     //loadOrCreateProject(path);
     loadProject(path);
+  });
+
+  window.electronAPI.onRestoreSession(async ({ projectPath, filePath }) => {
+    await loadProject(projectPath);
+    if (filePath) {
+      const fileName = filePath.split('/').pop();
+      openTab({ name: fileName, path: filePath });
+    }
   });
 
   window.electronAPI.onSaveFile(() => {

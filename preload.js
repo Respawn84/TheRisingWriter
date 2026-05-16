@@ -33,9 +33,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getUsageStats: () => ipcRenderer.invoke('get-usage-stats'),
   openLogFile: () => ipcRenderer.invoke('open-log-file'),
   
+  // Estadísticas de capítulo
+  calculateChapterStats: (folderPath) => ipcRenderer.invoke('calculate-chapter-stats', folderPath),
+
+  // Último fichero abierto
+  saveLastFile: (filePath) => ipcRenderer.invoke('save-last-file', filePath),
+
   // Eventos del main
   onProjectFolderOpened: (callback) => ipcRenderer.on('project-folder-opened', (_, path) => callback(path)),
   onProjectFileOpened: (callback) => ipcRenderer.on('project-file-opened', (_, path) => callback(path)),
+  onRestoreSession: (callback) => ipcRenderer.on('restore-session', (_, data) => callback(data)),
   onSaveFile: (callback) => ipcRenderer.on('save-file', callback),
   onShowUsageStats: (callback) => ipcRenderer.on('show-usage-stats', callback),
   onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback),

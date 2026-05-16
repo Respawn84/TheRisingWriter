@@ -24,6 +24,21 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   }
 
+  mainWindow.webContents.once('did-finish-load', async () => {
+    const props = await readProperties();
+    const lastProject = props.lastProject;
+    const lastFile = props.lastFile || null;
+
+    if (lastProject) {
+      try {
+        await fs.access(lastProject);
+        mainWindow.webContents.send('restore-session', { projectPath: lastProject, filePath: lastFile });
+      } catch {
+        // El proyecto ya no existe en disco, ignorar
+      }
+    }
+  });
+
   createMenu();
 }
 
@@ -109,20 +124,24 @@ async function openProjectFolder() {
   });
 
   if (!result.canceled && result.filePaths.length > 0) {
-    mainWindow.webContents.send('project-folder-opened', result.filePaths[0]);
+    const projectPath = result.filePaths[0];
+    await saveLastProject(projectPath);
+    mainWindow.webContents.send('project-folder-opened', projectPath);
   }
 }
 
 async function openProjectFile() {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
-    title: 'Seleccionar fichero del proyecto', 
+    title: 'Seleccionar fichero del proyecto',
   },
   [{ name: 'Fichero de Proyecto', extensions: ['json'] }] //Filtro de extensiones
 );
 
   if (!result.canceled && result.filePaths.length > 0) {
-    mainWindow.webContents.send('project-file-opened', result.filePaths[0]);
+    const projectPath = result.filePaths[0];
+    await saveLastProject(projectPath);
+    mainWindow.webContents.send('project-file-opened', projectPath);
   }
 }
 
@@ -354,6 +373,34 @@ ipcMain.handle('load-or-create-project', async (event, dirPath) => {
   }
 });
 
+// Handler: Calcular estadísticas de capítulo
+ipcMain.handle('calculate-chapter-stats', async (event, folderPath) => {
+  try {
+    const entries = await fs.readdir(folderPath, { withFileTypes: true });
+    const txtFiles = entries.filter(e => e.isFile() && !e.name.startsWith('.') && e.name.endsWith('.txt'));
+
+    let totalWords = 0;
+    for (const file of txtFiles) {
+      const content = await fs.readFile(path.join(folderPath, file.name), 'utf-8');
+      const trimmed = content.trim();
+      totalWords += trimmed === '' ? 0 : trimmed.split(/\s+/).length;
+    }
+
+    const scenes = txtFiles.length;
+    const avgWordsPerScene = scenes > 0 ? Math.round(totalWords / scenes) : 0;
+
+    return { success: true, scenes, totalWords, avgWordsPerScene };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler: Guardar último fichero abierto
+ipcMain.handle('save-last-file', async (event, filePath) => {
+  await saveLastFile(filePath);
+  return { success: true };
+});
+
 // Handler: Guardar proyecto JSON
 ipcMain.handle('save-project-json', async (event, jsonPath, data) => {
   try {
@@ -465,6 +512,10 @@ ipcMain.handle('get-directory-type', async (event, jsonPath, dirPath) => {
 
 const PRICING_FILE = path.join(app.getPath('userData'), 'pricing.json');
 const LOG_FILE = path.join(app.getPath('userData'), 'usage.log');
+const PROPERTIES_FILE = path.join(
+  app.isPackaged ? path.dirname(app.getPath('exe')) : __dirname,
+  'rising-writer.properties'
+);
 
 ipcMain.handle('get-api-key', () => {
   return process.env.ANTHROPIC_API_KEY || '';
@@ -908,6 +959,43 @@ ipcMain.handle('export-to-epub', async (event, { capitulosPath, metadata }) => {
     return { success: false, error: error.message };
   }
 });
+
+// === ÚLTIMO PROYECTO Y FICHERO ===
+
+async function readProperties() {
+  try {
+    const content = await fs.readFile(PROPERTIES_FILE, 'utf-8');
+    const props = {};
+    for (const line of content.split('\n')) {
+      const match = line.match(/^([^=]+)=(.+)$/);
+      if (match) props[match[1].trim()] = match[2].trim();
+    }
+    return props;
+  } catch {
+    return {};
+  }
+}
+
+async function writeProperties(props) {
+  try {
+    const content = Object.entries(props).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
+    await fs.writeFile(PROPERTIES_FILE, content, 'utf-8');
+  } catch (error) {
+    console.error('Error guardando properties:', error);
+  }
+}
+
+async function saveLastProject(projectPath) {
+  const props = await readProperties();
+  props.lastProject = projectPath;
+  await writeProperties(props);
+}
+
+async function saveLastFile(filePath) {
+  const props = await readProperties();
+  props.lastFile = filePath;
+  await writeProperties(props);
+}
 
 // === APP LIFECYCLE ===
 

@@ -154,6 +154,9 @@
       <button class="menu-item" data-action="export-docx" data-folder-only="true">
         <span>📝</span> Exportar a Word
       </button>
+      <button class="menu-item" data-action="chapter-stats">
+        <span>📊</span> Estadísticas del capítulo
+      </button>
     </div>
     <div class="menu-divider"></div>
     <div class="menu-section" id="menu-mark-section">
@@ -479,6 +482,39 @@
         <button id="btn-find-next" class="btn-secondary hidden">›  Siguiente</button>
         <button id="btn-replace-one" class="btn-secondary">Reemplazar siguiente</button>
         <button id="btn-replace-all" class="btn-primary">Reemplazar todo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Estadísticas del capítulo -->
+  <div id="modal-chapter-stats" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📊 Estadísticas del capítulo</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <h4 id="chapter-stats-name" style="margin: 0 0 16px; color: var(--text-primary);"></h4>
+        <div class="stats-summary">
+          <div class="stat-card">
+            <div class="stat-label">Escenas</div>
+            <div class="stat-value" id="chapter-stat-scenes">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Palabras</div>
+            <div class="stat-value" id="chapter-stat-words">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Media por escena</div>
+            <div class="stat-value" id="chapter-stat-avg">—</div>
+          </div>
+        </div>
+        <div id="chapter-stats-date" style="margin-top: 12px; font-size: 0.8em; color: var(--text-muted);"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cerrar</button>
+        <button id="btn-recalculate-stats" class="btn-primary">🔄 Recalcular</button>
       </div>
     </div>
   </div>
