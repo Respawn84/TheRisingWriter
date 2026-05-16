@@ -21,7 +21,8 @@ function prepareFindReplaceModal() {
   
   findMatches = [];
   currentMatchIndex = -1;
-  
+  document.getElementById('btn-find-next').classList.add('hidden');
+
   // Pre-llenar con texto seleccionado si existe
   if (state.selectedText && state.selectedText.length > 0) {
     findInput.value = state.selectedText;
@@ -94,37 +95,69 @@ function performFind() {
   countSpan.textContent = `${findMatches.length} coincidencia${findMatches.length !== 1 ? 's' : ''}`;
   
   if (findMatches.length > 0) {
-    // Seleccionar primera coincidencia
     currentMatchIndex = 0;
     highlightMatch();
+  }
+
+  // Mostrar botón Siguiente solo si hay más de un resultado
+  const btnNext = document.getElementById('btn-find-next');
+  if (findMatches.length > 1) {
+    btnNext.classList.remove('hidden');
+  } else {
+    btnNext.classList.add('hidden');
   }
 }
 
 // Resaltar coincidencia actual
 function highlightMatch() {
   if (currentMatchIndex < 0 || currentMatchIndex >= findMatches.length) return;
-  
+
   const editor = document.getElementById('editor');
   const findText = document.getElementById('input-find').value;
   const matchIndex = findMatches[currentMatchIndex];
-  
-  // Seleccionar el texto SIN cambiar el foco
-  editor.focus();
+
+  const targetScrollTop = calcScrollTopForChar(editor, matchIndex);
+
+  editor.focus({ preventScroll: true });
   editor.setSelectionRange(matchIndex, matchIndex + findText.length);
-  
-  // Hacer scroll al texto seleccionado
-  // Calcular la línea aproximada del resultado
-  const textBeforeMatch = editor.value.substring(0, matchIndex);
-  const linesBefore = textBeforeMatch.split('\n').length;
-  const lineHeight = 20; // Altura aproximada de línea en pixels
-  const editorHeight = editor.clientHeight;
-  
-  // Calcular scroll para centrar el resultado
-  const scrollTarget = (linesBefore * lineHeight);// - (editorHeight / 2);
-  editor.scrollTop = Math.max(0, scrollTarget);
-  
-  // NO hacer focus en el editor - mantener foco en el modal
-  //editor.focus();
+
+  // requestAnimationFrame aplica nuestro scroll DESPUÉS del auto-scroll
+  // que dispara setSelectionRange, evitando que lo sobreescriba
+  requestAnimationFrame(() => {
+    editor.scrollTop = targetScrollTop;
+  });
+}
+
+// Retorna el scrollTop necesario para centrar charIndex en el viewport,
+// usando un div espejo que replica el layout exacto del textarea.
+function calcScrollTopForChar(editor, charIndex) {
+  const style = window.getComputedStyle(editor);
+
+  const mirror = document.createElement('div');
+  mirror.style.cssText = [
+    'position:absolute', 'top:-9999px', 'left:-9999px', 'visibility:hidden',
+    `width:${editor.clientWidth}px`,
+    `padding:${style.padding}`,
+    `font-size:${style.fontSize}`,
+    `font-family:${style.fontFamily}`,
+    `line-height:${style.lineHeight}`,
+    'white-space:pre-wrap',
+    'word-wrap:break-word',
+    'overflow-wrap:break-word',
+    'box-sizing:border-box',
+  ].join(';');
+
+  mirror.textContent = editor.value.substring(0, charIndex);
+
+  const marker = document.createElement('span');
+  marker.textContent = '​';
+  mirror.appendChild(marker);
+
+  document.body.appendChild(mirror);
+  const markerTop = marker.offsetTop;
+  document.body.removeChild(mirror);
+
+  return Math.max(0, markerTop - editor.clientHeight / 2);
 }
 
 // Reemplazar siguiente
@@ -251,10 +284,16 @@ function setupFindReplaceListeners() {
   // Los checkboxes solo actualizan su estado, no ejecutan búsqueda automática
   // El usuario debe presionar el botón "Buscar" manualmente
   
-  // Botón Buscar - ejecuta la búsqueda
   document.getElementById('btn-find').addEventListener('click', performFind);
-  
-  // Botones de reemplazo
+
+  document.getElementById('btn-find-next').addEventListener('click', () => {
+    if (findMatches.length === 0) return;
+    currentMatchIndex = (currentMatchIndex + 1) % findMatches.length;
+    const countSpan = document.getElementById('find-count');
+    countSpan.textContent = `${currentMatchIndex + 1} / ${findMatches.length} coincidencia${findMatches.length !== 1 ? 's' : ''}`;
+    highlightMatch();
+  });
+
   document.getElementById('btn-replace-one').addEventListener('click', replaceNext);
   document.getElementById('btn-replace-all').addEventListener('click', replaceAll);
   
