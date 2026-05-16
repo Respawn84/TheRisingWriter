@@ -49,6 +49,12 @@ function createMenu() {
           click: () => mainWindow.webContents.send('save-file')
         },
         { type: 'separator' },
+        {
+          label: 'Exportar a ePub...',
+          accelerator: 'CmdOrCtrl+Shift+E',
+          click: () => mainWindow.webContents.send('export-epub')
+        },
+        { type: 'separator' },
         { role: 'quit', label: 'Salir' }
       ]
     },
@@ -626,6 +632,213 @@ ipcMain.handle('export-to-docx', async (event, capitulosPath) => {
     return { success: true, path: filePath };
   } catch (error) {
     console.error('Error exportando DOCX:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// === EXPORT TO EPUB ===
+
+function escapeXml(str) {
+  return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+async function readChaptersForEpub(capitulosPath) {
+  const capEntries = await fs.readdir(capitulosPath, { withFileTypes: true });
+  const capDirs = capEntries
+    .filter(e => e.isDirectory() && !e.name.startsWith('.'))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+  const chapters = [];
+
+  for (const capDir of capDirs) {
+    const capPath = path.join(capitulosPath, capDir.name);
+    const sceneEntries = await fs.readdir(capPath, { withFileTypes: true });
+    const sceneFiles = sceneEntries
+      .filter(e => e.isFile() && !e.name.startsWith('.') && e.name.endsWith('.txt'))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+
+    const scenes = [];
+    for (const sceneFile of sceneFiles) {
+      const sceneName = sceneFile.name.replace(/^\d+-/, '').replace(/\.txt$/, '');
+      const content = await fs.readFile(path.join(capPath, sceneFile.name), 'utf-8');
+      scenes.push({
+        title: sceneName,
+        paragraphs: content.split('\n').filter(l => l.trim())
+      });
+    }
+
+    chapters.push({ title: capDir.name, scenes });
+  }
+
+  return chapters;
+}
+
+async function buildEpubBuffer(chapters, { title, author }) {
+  const JSZip = require('jszip');
+  const crypto = require('crypto');
+  const zip = new JSZip();
+
+  const bookId = `urn:uuid:${crypto.randomUUID()}`;
+  const lang = 'es';
+  const modified = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const safeTitle = title || 'Novela';
+  const safeAuthor = author || '';
+
+  zip.file('mimetype', 'application/epub+zip', { compression: 'STORE', compressionOptions: { level: 0 } });
+
+  zip.file('META-INF/container.xml', [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">',
+    '  <rootfiles>',
+    '    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>',
+    '  </rootfiles>',
+    '</container>'
+  ].join('\n'));
+
+  zip.file('OEBPS/Styles/stylesheet.css', [
+    'body { font-family: Georgia, serif; margin: 5%; text-align: justify; line-height: 1.6; }',
+    'h1 { text-align: center; margin-top: 3em; margin-bottom: 2em; font-size: 1.5em; page-break-before: always; }',
+    'h2 { text-align: center; margin-top: 2em; margin-bottom: 1em; font-size: 1.1em; font-weight: normal; font-style: italic; }',
+    'p { text-indent: 1.5em; margin: 0; }',
+    'p.first { text-indent: 0; }',
+    'p.separator { text-align: center; text-indent: 0; margin: 1em 0; }'
+  ].join('\n'));
+
+  const chapterRefs = [];
+
+  for (let i = 0; i < chapters.length; i++) {
+    const ch = chapters[i];
+    const fileId = `chapter${String(i + 1).padStart(3, '0')}`;
+    const filePath = `Text/${fileId}.xhtml`;
+
+    let bodyContent = `  <h1>${escapeXml(ch.title)}</h1>`;
+
+    for (let si = 0; si < ch.scenes.length; si++) {
+      const scene = ch.scenes[si];
+      if (ch.scenes.length > 1) {
+        bodyContent += `\n  <h2>${escapeXml(scene.title)}</h2>`;
+      }
+      for (let pi = 0; pi < scene.paragraphs.length; pi++) {
+        const cssClass = pi === 0 ? ' class="first"' : '';
+        bodyContent += `\n  <p${cssClass}>${escapeXml(scene.paragraphs[pi])}</p>`;
+      }
+      if (si < ch.scenes.length - 1) {
+        bodyContent += '\n  <p class="separator">* * *</p>';
+      }
+    }
+
+    zip.file(`OEBPS/${filePath}`, [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<!DOCTYPE html>',
+      `<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="${lang}">`,
+      '<head>',
+      '  <meta charset="UTF-8"/>',
+      `  <title>${escapeXml(ch.title)}</title>`,
+      '  <link rel="stylesheet" type="text/css" href="../Styles/stylesheet.css"/>',
+      '</head>',
+      '<body>',
+      bodyContent,
+      '</body>',
+      '</html>'
+    ].join('\n'));
+
+    chapterRefs.push({ id: fileId, href: filePath, title: ch.title });
+  }
+
+  const manifestItems = [
+    '    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
+    '    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>',
+    '    <item id="stylesheet" href="Styles/stylesheet.css" media-type="text/css"/>',
+    ...chapterRefs.map(c => `    <item id="${c.id}" href="${c.href}" media-type="application/xhtml+xml"/>`)
+  ].join('\n');
+
+  const spineItems = chapterRefs.map(c => `    <itemref idref="${c.id}"/>`).join('\n');
+
+  zip.file('OEBPS/content.opf', [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="BookId" xml:lang="${lang}">`,
+    '  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">',
+    `    <dc:identifier id="BookId">${bookId}</dc:identifier>`,
+    `    <dc:title>${escapeXml(safeTitle)}</dc:title>`,
+    `    <dc:creator>${escapeXml(safeAuthor)}</dc:creator>`,
+    `    <dc:language>${lang}</dc:language>`,
+    `    <meta property="dcterms:modified">${modified}</meta>`,
+    '  </metadata>',
+    '  <manifest>',
+    manifestItems,
+    '  </manifest>',
+    '  <spine toc="ncx">',
+    spineItems,
+    '  </spine>',
+    '</package>'
+  ].join('\n'));
+
+  const navPoints = chapterRefs.map((c, i) => [
+    `    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">`,
+    `      <navLabel><text>${escapeXml(c.title)}</text></navLabel>`,
+    `      <content src="${c.href}"/>`,
+    `    </navPoint>`
+  ].join('\n')).join('\n');
+
+  zip.file('OEBPS/toc.ncx', [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">',
+    '  <head>',
+    `    <meta name="dtb:uid" content="${bookId}"/>`,
+    '    <meta name="dtb:depth" content="1"/>',
+    '    <meta name="dtb:totalPageCount" content="0"/>',
+    '    <meta name="dtb:maxPageNumber" content="0"/>',
+    '  </head>',
+    `  <docTitle><text>${escapeXml(safeTitle)}</text></docTitle>`,
+    '  <navMap>',
+    navPoints,
+    '  </navMap>',
+    '</ncx>'
+  ].join('\n'));
+
+  const navItems = chapterRefs.map(c => `      <li><a href="${c.href}">${escapeXml(c.title)}</a></li>`).join('\n');
+
+  zip.file('OEBPS/nav.xhtml', [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE html>',
+    `<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="${lang}">`,
+    '<head>',
+    '  <meta charset="UTF-8"/>',
+    '  <title>Índice</title>',
+    '</head>',
+    '<body>',
+    '  <nav epub:type="toc" id="toc">',
+    '    <h1>Índice</h1>',
+    '    <ol>',
+    navItems,
+    '    </ol>',
+    '  </nav>',
+    '</body>',
+    '</html>'
+  ].join('\n'));
+
+  return await zip.generateAsync({ type: 'nodebuffer', mimeType: 'application/epub+zip' });
+}
+
+ipcMain.handle('export-to-epub', async (event, { capitulosPath, metadata }) => {
+  try {
+    const safeName = (metadata.title || 'novela').replace(/[/\\:*?"<>|]/g, '_');
+
+    const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar a ePub',
+      defaultPath: path.join(capitulosPath, '..', `${safeName}.epub`),
+      filters: [{ name: 'Libro ePub', extensions: ['epub'] }]
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    const chapters = await readChaptersForEpub(capitulosPath);
+    const buffer = await buildEpubBuffer(chapters, metadata);
+    await fs.writeFile(filePath, buffer);
+
+    return { success: true, path: filePath };
+  } catch (error) {
+    console.error('Error exportando ePub:', error);
     return { success: false, error: error.message };
   }
 });

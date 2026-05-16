@@ -22,6 +22,10 @@ function setupMainEventListeners() {
   window.electronAPI.onShowFindReplace(() => {
     openModal('modal-find-replace');
   });
+
+  window.electronAPI.onExportEpub(() => {
+    exportNovelToEpub();
+  });
 }
 
 // Inicializar todo

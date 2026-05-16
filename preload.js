@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
    // === PROJECT MANAGEMENT ===
   exportToDocx: (capitulosPath) => ipcRenderer.invoke('export-to-docx', capitulosPath),
+  exportToEpub: (params) => ipcRenderer.invoke('export-to-epub', params),
   loadOrCreateProject: (dirPath) => ipcRenderer.invoke('load-or-create-project', dirPath),
   saveProjectJson: (jsonPath, data) => ipcRenderer.invoke('save-project-json', jsonPath, data),
   markDirectory: (jsonPath, dirPath, tipo) => ipcRenderer.invoke('mark-directory', jsonPath, dirPath, tipo),
@@ -36,5 +37,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onProjectFileOpened: (callback) => ipcRenderer.on('project-file-opened', (_, path) => callback(path)),
   onSaveFile: (callback) => ipcRenderer.on('save-file', callback),
   onShowUsageStats: (callback) => ipcRenderer.on('show-usage-stats', callback),
-  onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback)
+  onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback),
+  onExportEpub: (callback) => ipcRenderer.on('export-epub', callback)
 });
