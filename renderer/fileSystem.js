@@ -160,6 +160,18 @@ function showFileContextMenu(e, item) {
   // Mostrar/ocultar botones solo para carpetas / solo para archivos
   const isCapitulos = item.isDirectory && getDirectoryTypeFromPath(item.path) === 'capitulos';
 
+  // Detectar si es una carpeta de capítulo (hija directa del directorio capitulos)
+  const capitulosRuta = state.projectData?.configuracion?.directorios?.capitulos?.ruta;
+  const isChapterFolder = item.isDirectory && capitulosRuta &&
+    item.path.substring(0, item.path.lastIndexOf('/')) === capitulosRuta;
+
+  // Detectar si es un fichero de escena (archivo dentro de una carpeta de capítulo)
+  const isSceneFile = !item.isDirectory && capitulosRuta && (() => {
+    const parent = item.path.substring(0, item.path.lastIndexOf('/'));
+    const grandparent = parent.substring(0, parent.lastIndexOf('/'));
+    return grandparent === capitulosRuta;
+  })();
+
   const newChapterBtn = menu.querySelector('[data-action="new-chapter"]');
   if (newChapterBtn) {
     newChapterBtn.style.display = isCapitulos ? 'flex' : 'none';
@@ -172,9 +184,20 @@ function showFileContextMenu(e, item) {
   if (exportBtn) {
     exportBtn.style.display = item.isDirectory ? 'flex' : 'none';
   }
+  // "Abrir en split derecho" solo para archivos, nunca para carpetas de capítulo
+  const openSplitBtn = menu.querySelector('[data-action="open-split"]');
+  if (openSplitBtn) {
+    openSplitBtn.style.display = (!item.isDirectory) ? 'flex' : 'none';
+  }
+  // "Metadatos" para carpetas de capítulo y ficheros de escena
+  const openMetadataBtn = menu.querySelector('[data-action="open-metadata"]');
+  if (openMetadataBtn) {
+    openMetadataBtn.style.display = (isChapterFolder || isSceneFile) ? 'flex' : 'none';
+  }
+  // "Estadísticas del capítulo" solo para carpetas de capítulo
   const chapterStatsBtn = menu.querySelector('[data-action="chapter-stats"]');
   if (chapterStatsBtn) {
-    chapterStatsBtn.style.display = item.isDirectory && isChapterFolder(item.path) ? 'flex' : 'none';
+    chapterStatsBtn.style.display = isChapterFolder ? 'flex' : 'none';
   }
   // Actualizar opciones de marcado si es directorio
   if (item.isDirectory) {
@@ -301,6 +324,12 @@ function setupFileSystemListeners() {
         openDeleteModal();
       } else if (action === 'open-split') {
         openInSplit(state.itemToRename);
+      } else if (action === 'open-metadata') {
+        if (state.itemToRename.isDirectory) {
+          openChapterMetadataPanel(state.itemToRename);
+        } else {
+          openSceneMetadataPanel(state.itemToRename);
+        }
       } else if (action === 'export-docx') {
         exportFolderToDocx(state.itemToRename.path);
       } else if (action === 'unmark') {
