@@ -211,7 +211,11 @@ function openProjectMetadataModal() {
   document.getElementById('project-date').value = proyecto.fecha || '';
   document.getElementById('project-saga').value = proyecto.saga || '';
   document.getElementById('project-deadline').value = proyecto.fechaPrevista || '';
-  
+
+  const coverPath = proyecto.rutaPortada || '';
+  document.getElementById('project-cover').value = coverPath;
+  updateCoverPreview(coverPath);
+
   const errorDiv = document.getElementById('project-metadata-error');
   errorDiv.classList.add('hidden');
   
@@ -228,6 +232,7 @@ async function saveProjectMetadata() {
   state.projectData.proyecto.fecha = document.getElementById('project-date').value;
   state.projectData.proyecto.saga = document.getElementById('project-saga').value;
   state.projectData.proyecto.fechaPrevista = document.getElementById('project-deadline').value;
+  state.projectData.proyecto.rutaPortada = document.getElementById('project-cover').value;
   
   // Guardar JSON
   const result = await window.electronAPI.saveProjectJson(
@@ -323,12 +328,33 @@ function setupMarkSubmenu() {
 
 // === LISTENERS ===
 
+function updateCoverPreview(filePath) {
+  const wrap = document.getElementById('cover-preview-wrap');
+  const img = document.getElementById('cover-preview');
+  if (filePath) {
+    img.src = `file://${filePath}`;
+    wrap.classList.remove('hidden');
+  } else {
+    img.src = '';
+    wrap.classList.add('hidden');
+  }
+}
+
 function setupProjectListeners() {
   // Botón de metadatos
   document.getElementById('btn-project-metadata')?.addEventListener('click', openProjectMetadataModal);
-  
+
   // Guardar metadatos
   document.getElementById('btn-save-metadata')?.addEventListener('click', saveProjectMetadata);
+
+  // Selector de portada
+  document.getElementById('btn-select-cover')?.addEventListener('click', async () => {
+    const result = await window.electronAPI.openImageDialog();
+    if (result.success) {
+      document.getElementById('project-cover').value = result.path;
+      updateCoverPreview(result.path);
+    }
+  });
   
   // Submenú de marcado
   setupMarkSubmenu();

@@ -323,7 +323,8 @@ ipcMain.handle('load-or-create-project', async (event, dirPath) => {
           autor: "",
           fecha: new Date().toISOString().split('T')[0],
           saga: "",
-          fechaPrevista: ""
+          fechaPrevista: "",
+          rutaPortada: ""
         },
         configuracion: {
           directorios: {
@@ -636,6 +637,15 @@ ipcMain.handle('export-to-docx', async (event, capitulosPath) => {
   }
 });
 
+ipcMain.handle('open-image-dialog', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    title: 'Seleccionar imagen de portada',
+    filters: [{ name: 'Imágenes', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
+  });
+  return result.canceled ? { success: false } : { success: true, path: result.filePaths[0] };
+});
+
 // === EXPORT TO EPUB ===
 
 function escapeXml(str) {
@@ -673,7 +683,12 @@ async function readChaptersForEpub(capitulosPath) {
   return chapters;
 }
 
-async function buildEpubBuffer(chapters, { title, author }) {
+function getImageMediaType(ext) {
+  const types = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp' };
+  return types[ext.toLowerCase()] || 'image/jpeg';
+}
+
+async function buildEpubBuffer(chapters, { title, author, rutaPortada }) {
   const JSZip = require('jszip');
   const crypto = require('crypto');
   const zip = new JSZip();
@@ -701,9 +716,46 @@ async function buildEpubBuffer(chapters, { title, author }) {
     'h2 { text-align: center; margin-top: 2em; margin-bottom: 1em; font-size: 1.1em; font-weight: normal; font-style: italic; }',
     'p { text-indent: 1.5em; margin: 0; }',
     'p.first { text-indent: 0; }',
-    'p.separator { text-align: center; text-indent: 0; margin: 1em 0; }'
+    'p.separator { text-align: center; text-indent: 0; margin: 1em 0; }',
+    '.cover-page { margin: 0; padding: 0; text-align: center; }',
+    '.cover-page img { max-width: 100%; max-height: 100vh; display: block; margin: 0 auto; }'
   ].join('\n'));
 
+  // --- Portada ---
+  let hasCover = false;
+  let coverFileName = '';
+  let coverMediaType = '';
+
+  if (rutaPortada) {
+    try {
+      const coverData = await fs.readFile(rutaPortada);
+      const ext = path.extname(rutaPortada) || '.jpg';
+      coverFileName = `cover${ext}`;
+      coverMediaType = getImageMediaType(ext);
+      zip.file(`OEBPS/Images/${coverFileName}`, coverData);
+
+      zip.file('OEBPS/Text/cover.xhtml', [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<!DOCTYPE html>',
+        `<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="${lang}">`,
+        '<head>',
+        '  <meta charset="UTF-8"/>',
+        '  <title>Portada</title>',
+        '  <link rel="stylesheet" type="text/css" href="../Styles/stylesheet.css"/>',
+        '</head>',
+        '<body class="cover-page">',
+        `  <img src="../Images/${coverFileName}" alt="Portada"/>`,
+        '</body>',
+        '</html>'
+      ].join('\n'));
+
+      hasCover = true;
+    } catch (e) {
+      console.warn('No se pudo leer la imagen de portada:', e.message);
+    }
+  }
+
+  // --- Capítulos ---
   const chapterRefs = [];
 
   for (let i = 0; i < chapters.length; i++) {
@@ -745,14 +797,26 @@ async function buildEpubBuffer(chapters, { title, author }) {
     chapterRefs.push({ id: fileId, href: filePath, title: ch.title });
   }
 
+  // --- content.opf ---
+  const coverManifestItems = hasCover ? [
+    `    <item id="cover-image" href="Images/${coverFileName}" media-type="${coverMediaType}" properties="cover-image"/>`,
+    '    <item id="cover" href="Text/cover.xhtml" media-type="application/xhtml+xml"/>'
+  ] : [];
+
   const manifestItems = [
     '    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
     '    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>',
     '    <item id="stylesheet" href="Styles/stylesheet.css" media-type="text/css"/>',
+    ...coverManifestItems,
     ...chapterRefs.map(c => `    <item id="${c.id}" href="${c.href}" media-type="application/xhtml+xml"/>`)
   ].join('\n');
 
-  const spineItems = chapterRefs.map(c => `    <itemref idref="${c.id}"/>`).join('\n');
+  const spineItems = [
+    ...(hasCover ? ['    <itemref idref="cover" linear="no"/>'] : []),
+    ...chapterRefs.map(c => `    <itemref idref="${c.id}"/>`)
+  ].join('\n');
+
+  const coverMeta = hasCover ? '\n    <meta name="cover" content="cover-image"/>' : '';
 
   zip.file('OEBPS/content.opf', [
     '<?xml version="1.0" encoding="UTF-8"?>',
@@ -762,7 +826,7 @@ async function buildEpubBuffer(chapters, { title, author }) {
     `    <dc:title>${escapeXml(safeTitle)}</dc:title>`,
     `    <dc:creator>${escapeXml(safeAuthor)}</dc:creator>`,
     `    <dc:language>${lang}</dc:language>`,
-    `    <meta property="dcterms:modified">${modified}</meta>`,
+    `    <meta property="dcterms:modified">${modified}</meta>${coverMeta}`,
     '  </metadata>',
     '  <manifest>',
     manifestItems,
@@ -773,6 +837,7 @@ async function buildEpubBuffer(chapters, { title, author }) {
     '</package>'
   ].join('\n'));
 
+  // --- toc.ncx ---
   const navPoints = chapterRefs.map((c, i) => [
     `    <navPoint id="navPoint-${i + 1}" playOrder="${i + 1}">`,
     `      <navLabel><text>${escapeXml(c.title)}</text></navLabel>`,
@@ -796,6 +861,7 @@ async function buildEpubBuffer(chapters, { title, author }) {
     '</ncx>'
   ].join('\n'));
 
+  // --- nav.xhtml ---
   const navItems = chapterRefs.map(c => `      <li><a href="${c.href}">${escapeXml(c.title)}</a></li>`).join('\n');
 
   zip.file('OEBPS/nav.xhtml', [

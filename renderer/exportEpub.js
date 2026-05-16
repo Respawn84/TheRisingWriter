@@ -14,7 +14,8 @@ async function exportNovelToEpub() {
 
   const metadata = {
     title: state.projectData.proyecto.titulo || 'Novela',
-    author: state.projectData.proyecto.autor || ''
+    author: state.projectData.proyecto.autor || '',
+    rutaPortada: state.projectData.proyecto.rutaPortada || ''
   };
 
   showNotification('Exportando a ePub...');
