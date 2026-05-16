@@ -79,7 +79,7 @@ async function loadSplitFile(filePath) {
 // Wrapper seguro para marked.parse — degrada a texto plano si la librería no está cargada
 function mdParse(text) {
   if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
-    return mdParse(text);
+    return marked.parse(text);
   }
   return `<pre>${escapeHtml(text)}</pre>`;
 }
