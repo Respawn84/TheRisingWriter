@@ -142,6 +142,9 @@
   <!-- Context Menu for Files/Folders -->
   <div id="file-context-menu" class="hidden">
     <div class="menu-section">
+      <button class="menu-item" data-action="new-chapter">
+        <span>📚</span> Nuevo Capítulo
+      </button>
       <button class="menu-item" data-action="new-file-here" data-folder-only="true">
         <span>📄</span> Nuevo archivo aquí
       </button>
@@ -173,6 +176,26 @@
       </button>
     </div>
   </div>
+  <!-- Modal: Nuevo Capítulo -->
+  <div id="modal-new-chapter" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📚 Nuevo Capítulo</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Nombre del capítulo:</label>
+        <input type="text" id="input-chapter-name" class="modal-input" placeholder="Capítulo 1">
+        <div id="chapter-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-new-chapter" class="btn-primary">Crear</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Submenú de marcado -->
   <div id="mark-submenu" class="hidden">
     <button class="menu-item" data-type="capitulos">

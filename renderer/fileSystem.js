@@ -156,8 +156,14 @@ function showFileContextMenu(e, item) {
   menu.classList.remove('hidden');
   
   state.itemToRename = item;
-  
+
   // Mostrar/ocultar botones solo para carpetas / solo para archivos
+  const isCapitulos = item.isDirectory && getDirectoryTypeFromPath(item.path) === 'capitulos';
+
+  const newChapterBtn = menu.querySelector('[data-action="new-chapter"]');
+  if (newChapterBtn) {
+    newChapterBtn.style.display = isCapitulos ? 'flex' : 'none';
+  }
   const newFileBtn = menu.querySelector('[data-action="new-file-here"]');
   if (newFileBtn) {
     newFileBtn.style.display = item.isDirectory ? 'flex' : 'none';
@@ -279,7 +285,9 @@ function setupFileSystemListeners() {
       const action = item.dataset.action;
       hideContextMenu();
       
-      if (action === 'new-file-here') {
+      if (action === 'new-chapter') {
+        openNewChapterModal();
+      } else if (action === 'new-file-here') {
         openNewFileInFolderModal();
       } else if (action === 'rename') {
         openRenameModal();
