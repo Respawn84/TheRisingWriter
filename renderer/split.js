@@ -44,6 +44,7 @@ function hideSplit() {
 
 // Abrir archivo en split derecho
 async function openInSplit(file) {
+  cancelPendingMetadataRender(); // cancela cualquier carga de metadatos en vuelo
   state.splitFile = file.path;
   
   // Activar split si no está activo
@@ -75,6 +76,14 @@ async function loadSplitFile(filePath) {
   }
 }
 
+// Wrapper seguro para marked.parse — degrada a texto plano si la librería no está cargada
+function mdParse(text) {
+  if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+    return marked.parse(text);
+  }
+  return `<pre>${escapeHtml(text)}</pre>`;
+}
+
 // Renderizado para ficheros .md: colapsables por ## headings
 function renderMarkdownSections(text) {
   const lines = text.split('\n');
@@ -104,7 +113,7 @@ function renderMarkdownSections(text) {
   // Preámbulo (antes del primer ##) renderizado como md sin colapsable
   if (sections._preamble && sections._preamble.length) {
     const preamble = sections._preamble.join('\n').trim();
-    if (preamble) html += `<div class="split-plain split-md">${marked.parse(preamble)}</div>`;
+    if (preamble) html += `<div class="split-plain split-md">${mdParse(preamble)}</div>`;
   }
 
   // Cada sección colapsable
@@ -113,11 +122,11 @@ function renderMarkdownSections(text) {
     const body = section.lines.join('\n').trim();
     html += `<details class="split-section" open>
   <summary class="split-summary">${escapeHtml(section.title)}</summary>
-  <div class="split-body split-md">${body ? marked.parse(body) : ''}</div>
+  <div class="split-body split-md">${body ? mdParse(body) : ''}</div>
 </details>`;
   }
 
-  return html || `<div class="split-plain split-md">${marked.parse(text)}</div>`;
+  return html || `<div class="split-plain split-md">${mdParse(text)}</div>`;
 }
 
 // Renderizado para ficheros de texto: colapsables por líneas de guiones
