@@ -92,6 +92,7 @@
 /* EDITOR CONTAINER */
 #editor-container {
   flex: 1;
+  min-width: 0; /* Permite que el contenedor se encoja en la fila flex del main-container */
   display: flex;
   flex-direction: column;
   position: relative;

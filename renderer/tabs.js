@@ -126,9 +126,10 @@ async function loadTabContent(index) {
     state.hasUnsavedChanges = tab.hasChanges;
     updateFileIndicator();
     updateWordCount();
+    if (isTramaFile(tab.path)) openTramaMetadataPanel({ path: tab.path, name: tab.name });
     return;
   }
-  
+
   // Cargar desde disco
   const result = await window.electronAPI.readFile(tab.path);
   if (result.success) {
@@ -140,6 +141,7 @@ async function loadTabContent(index) {
     tab.hasChanges = false;
     updateFileIndicator();
     updateWordCount();
+    if (isTramaFile(tab.path)) openTramaMetadataPanel({ path: tab.path, name: tab.name });
   } else {
     showNotification(`Error al leer: ${tab.name}`);
   }
