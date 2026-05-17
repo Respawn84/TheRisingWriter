@@ -89,7 +89,18 @@ function createFileElement(file, level) {
   const el = document.createElement('div');
   el.className = 'file-item';
   el.style.paddingLeft = `${level * 12 + 8}px`;
-  el.innerHTML = `<span>📄</span><span>${file.name}</span>`;
+
+  let iconHtml;
+  if (isTramaFile(file.path)) {
+    const meta = state.projectData?.metadatosTramas?.[file.path];
+    const icon = getTramaEstadoIcon(meta?.estado || 'pendiente');
+    const label = getTramaEstadoLabel(meta?.estado || 'pendiente');
+    iconHtml = `<span class="trama-estado-icon" title="${label}">${icon}</span>`;
+  } else {
+    iconHtml = `<span>📄</span>`;
+  }
+
+  el.innerHTML = `${iconHtml}<span>${file.name}</span>`;
   el.dataset.path = file.path;
   
   //el.addEventListener('click', () => openFile(file));
@@ -189,10 +200,11 @@ function showFileContextMenu(e, item) {
   if (openSplitBtn) {
     openSplitBtn.style.display = (!item.isDirectory) ? 'flex' : 'none';
   }
-  // "Metadatos" para carpetas de capítulo y ficheros de escena
+  // "Metadatos" para carpetas de capítulo, ficheros de escena y ficheros de trama
+  const isTramaFileItem = !item.isDirectory && isTramaFile(item.path);
   const openMetadataBtn = menu.querySelector('[data-action="open-metadata"]');
   if (openMetadataBtn) {
-    openMetadataBtn.style.display = (isChapterFolder || isSceneFile) ? 'flex' : 'none';
+    openMetadataBtn.style.display = (isChapterFolder || isSceneFile || isTramaFileItem) ? 'flex' : 'none';
   }
   // "Estadísticas del capítulo" solo para carpetas de capítulo
   const chapterStatsBtn = menu.querySelector('[data-action="chapter-stats"]');
@@ -327,6 +339,8 @@ function setupFileSystemListeners() {
       } else if (action === 'open-metadata') {
         if (state.itemToRename.isDirectory) {
           openChapterMetadataPanel(state.itemToRename);
+        } else if (isTramaFile(state.itemToRename.path)) {
+          openTramaMetadataPanel(state.itemToRename);
         } else {
           openSceneMetadataPanel(state.itemToRename);
         }

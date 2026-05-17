@@ -14,6 +14,7 @@
   flex-direction: column;
   background: var(--bg);
   transition: flex 0.3s ease;
+  min-width: 0; /* Evita que el contenido expanda el panel más allá de su flex allocation */
 }
 
 .editor-panel.split-active {
@@ -94,6 +95,7 @@
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--border);
+  max-width: 100%;
 }
 
 .split-summary {
@@ -136,21 +138,27 @@
   padding: 14px 18px;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: break-word;
   font-family: 'Georgia', 'Times New Roman', serif;
   font-size: 15px;
   line-height: 1.8;
   background: var(--bg);
   color: var(--text);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .split-plain {
   margin: 0 0 12px 0;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow-wrap: break-word;
   font-family: 'Georgia', 'Times New Roman', serif;
   font-size: 15px;
   line-height: 1.8;
   color: var(--text);
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .split-error {
@@ -221,6 +229,17 @@
   background: var(--bg-secondary);
   padding: 1px 4px;
   border-radius: 3px;
+}
+
+/* El UA stylesheet del navegador pone white-space:pre en <pre>, sobreescribiendo
+   la herencia del padre. Lo forzamos a pre-wrap para que no desborde el panel. */
+.split-body pre,
+.split-plain pre,
+.split-md pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
 }
 
 /* === PANEL DE METADATOS DE CAPÍTULO === */
@@ -400,6 +419,55 @@
 .meta-stat-chars {
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+/* Sección colapsable en el panel de metadatos */
+
+.meta-collapsible {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: -1px; /* colapsa borde con la sección siguiente */
+}
+
+.meta-collapsible-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 18px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  gap: 6px;
+  transition: color 0.15s;
+}
+
+.meta-collapsible-header::-webkit-details-marker {
+  display: none;
+}
+
+.meta-collapsible-header::after {
+  content: '▶';
+  font-size: 9px;
+  margin-left: auto;
+  transition: transform 0.2s ease;
+  color: var(--text-secondary);
+}
+
+.meta-collapsible[open] > .meta-collapsible-header::after {
+  transform: rotate(90deg);
+}
+
+.meta-collapsible-header:hover {
+  color: var(--text);
+}
+
+.meta-collapsible .meta-section {
+  border-top: 1px solid var(--border);
+  border-bottom: none;
 }
 
 /* Botón guardar */

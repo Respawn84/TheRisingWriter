@@ -141,9 +141,17 @@ async function computeWordStats(folderPath) {
 }
 
 function getChapterMetadata(folderPath) {
-  if (!state.projectData) return { personajes: [], tramas: [], escenaAnterior: '', escenaSiguiente: '' };
+  if (!state.projectData) return { personajes: [], tramas: [], escenaAnterior: '', escenaSiguiente: '', relacionesAnteriores: [], relacionesPosteriores: [] };
   if (!state.projectData.metadatos) state.projectData.metadatos = {};
-  return state.projectData.metadatos[folderPath] || { personajes: [], tramas: [], escenaAnterior: '', escenaSiguiente: '' };
+  const meta = state.projectData.metadatos[folderPath] || {};
+  return {
+    personajes:          meta.personajes          || [],
+    tramas:              meta.tramas              || [],
+    escenaAnterior:      meta.escenaAnterior      || '',
+    escenaSiguiente:     meta.escenaSiguiente     || '',
+    relacionesAnteriores:  meta.relacionesAnteriores  || [],
+    relacionesPosteriores: meta.relacionesPosteriores || []
+  };
 }
 
 function escapeAttr(str) {
@@ -167,6 +175,15 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
     return (items || []).map(item =>
       `<span class="meta-tag" data-value="${escapeAttr(item)}">${escapeHtml(item)}<button class="meta-tag-remove" data-value="${escapeAttr(item)}" title="Eliminar">×</button></span>`
     ).join('');
+  }
+
+  // Tags de relaciones: data-value = ruta completa, texto = etiqueta legible "Capítulo / Escena"
+  const pathToLabel = new Map(allScenes.map(s => [s.path, s.label]));
+  function relationTagsHtml(paths) {
+    return (paths || []).map(path => {
+      const label = pathToLabel.get(path) || path.split('/').pop();
+      return `<span class="meta-tag" data-value="${escapeAttr(path)}" title="${escapeAttr(path)}">${escapeHtml(label)}<button class="meta-tag-remove" title="Eliminar">×</button></span>`;
+    }).join('');
   }
 
   const statsRows = (showStats && wordStats)
@@ -221,6 +238,38 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
       ${sceneOptions(existing.escenaSiguiente || '')}
     </select>
   </div>
+
+  ${!showStats ? `
+  <details class="meta-collapsible">
+    <summary class="meta-collapsible-header">🔗 Relaciones de escena</summary>
+
+    <div class="meta-section">
+      <div class="meta-section-title">↩ Relaciones anteriores</div>
+      <div class="meta-combo-row">
+        <select id="meta-rel-ant-combo" class="meta-select">
+          ${sceneOptions('')}
+        </select>
+        <button id="meta-add-rel-ant" class="meta-btn-add">+ Añadir</button>
+      </div>
+      <div id="meta-rel-ant-list" class="meta-tag-list">
+        ${relationTagsHtml(existing.relacionesAnteriores)}
+      </div>
+    </div>
+
+    <div class="meta-section" style="border-bottom:none">
+      <div class="meta-section-title">↪ Relaciones posteriores</div>
+      <div class="meta-combo-row">
+        <select id="meta-rel-post-combo" class="meta-select">
+          ${sceneOptions('')}
+        </select>
+        <button id="meta-add-rel-post" class="meta-btn-add">+ Añadir</button>
+      </div>
+      <div id="meta-rel-post-list" class="meta-tag-list">
+        ${relationTagsHtml(existing.relacionesPosteriores)}
+      </div>
+    </div>
+
+  </details>` : ''}
 
   ${showStats && wordStats ? `
   <div class="meta-section">
@@ -292,9 +341,57 @@ function setupMetadataListeners(folderPath) {
     }
   });
 
+  // Relaciones anteriores
+  document.getElementById('meta-add-rel-ant')?.addEventListener('click', () => {
+    const combo = document.getElementById('meta-rel-ant-combo');
+    const value = combo.value;
+    if (!value) return;
+    const list = document.getElementById('meta-rel-ant-list');
+    if (isAlreadyInList(list, value)) return;
+    const label = combo.options[combo.selectedIndex]?.text || value;
+    list.appendChild(createRelationTag(value, label));
+    combo.value = '';
+  });
+  document.getElementById('meta-rel-ant-list')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('meta-tag-remove')) {
+      e.target.closest('.meta-tag').remove();
+    }
+  });
+
+  // Relaciones posteriores
+  document.getElementById('meta-add-rel-post')?.addEventListener('click', () => {
+    const combo = document.getElementById('meta-rel-post-combo');
+    const value = combo.value;
+    if (!value) return;
+    const list = document.getElementById('meta-rel-post-list');
+    if (isAlreadyInList(list, value)) return;
+    const label = combo.options[combo.selectedIndex]?.text || value;
+    list.appendChild(createRelationTag(value, label));
+    combo.value = '';
+  });
+  document.getElementById('meta-rel-post-list')?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('meta-tag-remove')) {
+      e.target.closest('.meta-tag').remove();
+    }
+  });
+
   document.getElementById('meta-btn-save')?.addEventListener('click', () => {
     saveChapterMetadata(folderPath);
   });
+}
+
+// Tag para relaciones: data-value = ruta, texto = etiqueta legible
+function createRelationTag(path, label) {
+  const span = document.createElement('span');
+  span.className = 'meta-tag';
+  span.dataset.value = path;
+  span.title = path;
+  span.innerHTML = `${escapeHtml(label)}<button class="meta-tag-remove" title="Eliminar">×</button>`;
+  span.querySelector('.meta-tag-remove').addEventListener('click', (e) => {
+    e.stopPropagation();
+    span.remove();
+  });
+  return span;
 }
 
 async function saveChapterMetadata(folderPath) {
@@ -308,8 +405,12 @@ async function saveChapterMetadata(folderPath) {
     .map(el => el.dataset.value);
   const escenaAnterior = document.getElementById('meta-escena-anterior')?.value || '';
   const escenaSiguiente = document.getElementById('meta-escena-siguiente')?.value || '';
+  const relacionesAnteriores = Array.from(document.querySelectorAll('#meta-rel-ant-list .meta-tag'))
+    .map(el => el.dataset.value);
+  const relacionesPosteriores = Array.from(document.querySelectorAll('#meta-rel-post-list .meta-tag'))
+    .map(el => el.dataset.value);
 
-  state.projectData.metadatos[folderPath] = { personajes, tramas, escenaAnterior, escenaSiguiente };
+  state.projectData.metadatos[folderPath] = { personajes, tramas, escenaAnterior, escenaSiguiente, relacionesAnteriores, relacionesPosteriores };
 
   const result = await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   if (result.success) {
