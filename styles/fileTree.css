@@ -37,3 +37,18 @@
 .folder-children {
   padding-left: 16px;
 }
+
+/* === DRAG AND DROP === */
+
+.file-item.dragging,
+.folder-item.dragging {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.folder-item.drag-over {
+  background: rgba(74, 158, 255, 0.18) !important;
+  outline: 2px dashed var(--accent, #4a9eff);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+}

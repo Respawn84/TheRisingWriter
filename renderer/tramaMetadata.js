@@ -33,7 +33,9 @@ async function openTramaMetadataPanel(file) {
   const gen = state.metaLoadGen;
 
   state.splitMetadataFolder = file.path;
+  state.splitMetadataItem = file;
   state.splitFile = null;
+  hideBackToMetadataButton();
 
   if (!state.splitActive) {
     state.splitActive = true;

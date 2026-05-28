@@ -28,11 +28,7 @@
     <!-- Sidebar -->
     <div id="sidebar">
       <div class="sidebar-header">
-        <h3>📁 Proyecto</h3>
-        <button id="btn-project-metadata" class="btn-icon" title="Abrir Proyecto">📋</button>
-        <button id="btn-open" class="btn-icon" title="Abrir Carpeta">📂</button>
-        <button id="btn-new-file" class="btn-icon" title="Nuevo archivo">📄</button>
-        <button id="btn-new-folder" class="btn-icon" title="Nueva carpeta">➕</button>
+        <button id="btn-project-metadata" class="btn-icon" title="Metadatos del proyecto">📋</button>
       </div>
       <div id="file-tree">
         <div class="empty-state">
@@ -41,6 +37,8 @@
         </div>
       </div>
     </div>
+
+    <div id="sidebar-resizer"></div>
 
     <!-- Editor -->
     <div id="editor-container">
@@ -60,6 +58,7 @@
         <div id="editor-split" class="editor-panel hidden">
           <div class="split-header">
             <span id="split-file-name">📄 Referencia</span>
+            <button id="btn-back-to-metadata" class="btn-icon-small hidden" title="Volver a metadatos">←</button>
             <button id="btn-close-split" class="btn-icon-small" title="Cerrar split">✕</button>
           </div>
           <div id="editor-reference" class="editor-reference-view"></div>
@@ -145,6 +144,9 @@
       <button class="menu-item" data-action="new-chapter">
         <span>📚</span> Nuevo Capítulo
       </button>
+      <button class="menu-item" data-action="new-folder-here" data-folder-only="true">
+        <span>📂</span> Nueva carpeta aquí
+      </button>
       <button class="menu-item" data-action="new-file-here" data-folder-only="true">
         <span>📄</span> Nuevo archivo aquí
       </button>
@@ -173,9 +175,6 @@
     <div class="menu-section">
       <button class="menu-item" data-action="rename">
         <span>✏️</span> Renombrar
-      </button>
-      <button class="menu-item" data-action="move">
-        <span>📁</span> Mover a carpeta
       </button>
       <button class="menu-item" data-action="delete">
         <span>🗑️</span> Borrar
@@ -282,27 +281,6 @@
     </div>
   </div>
 
-  <div id="modal-move" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>📁 Mover a carpeta</h3>
-        <button class="btn-close">✕</button>
-      </div>
-      <div class="modal-body">
-        <p id="move-message"></p>
-        <label>Selecciona destino:</label>
-        <select id="select-destination" class="modal-input">
-          <option value="">-- Selecciona carpeta --</option>
-        </select>
-        <div id="move-error" class="error hidden"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel">Cancelar</button>
-        <button id="btn-confirm-move" class="btn-primary">Mover</button>
-      </div>
-    </div>
-  </div>
 
   <div id="modal-delete" class="modal hidden">
     <div class="modal-backdrop"></div>

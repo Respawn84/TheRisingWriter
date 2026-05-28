@@ -44,18 +44,13 @@ async function createNewFile() {
     
     const folderName = state.itemToRename ? state.itemToRename.name : 'raíz';
     showNotification(`Archivo creado en ${folderName}: ${fileName}`);
-    
-    // Limpiar selección
+
+    const fileToOpen = { name: fileName, path: result.path };
     state.itemToRename = null;
-    
-    // Recargar árbol y abrir el nuevo archivo
-    await loadProject(state.projectPath);
-    
-    // Intentar abrir el archivo recién creado
-    setTimeout(async () => {
-      const file = { name: fileName, path: result.path };
-      await openFile(file);
-    }, 200);
+
+    // Recargar preservando carpetas expandidas y abrir el nuevo archivo
+    await reloadPreservingExpanded();
+    await openFile(fileToOpen);
   } else {
     errorDiv.textContent = result.error || 'Error al crear archivo';
     errorDiv.classList.remove('hidden');
@@ -100,7 +95,7 @@ async function createChapter() {
     closeModal('modal-new-chapter');
     document.getElementById('input-chapter-name').value = '';
     showNotification(`Capítulo creado: ${name}`);
-    await loadProject(state.projectPath);
+    await reloadPreservingExpanded();
   } else {
     errorDiv.textContent = result.error || 'Error al crear el capítulo';
     errorDiv.classList.remove('hidden');
@@ -109,10 +104,10 @@ async function createChapter() {
 
 // Configurar listeners de nuevo archivo
 function setupNewFileListeners() {
-  document.getElementById('btn-new-file').addEventListener('click', () => {
+  document.getElementById('btn-new-file')?.addEventListener('click', () => {
     openModal('modal-new-file');
   });
-  
+
   document.getElementById('btn-confirm-new-file').addEventListener('click', createNewFile);
 
   // Enter en input

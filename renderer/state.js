@@ -14,7 +14,9 @@ const state = {
    activeTabIndex: -1,  // Índice de pestaña activa
    splitActive: false,  // Si split está activo
    splitFile: null,     // Path del archivo en split derecho
-   // Proyecto JSON
+   // Metadatos: item actualmente mostrado en el panel derecho
+  splitMetadataItem: null,   // { name, path, isDirectory } — usado para el botón "← Volver"
+  // Proyecto JSON
   projectJsonPath: null,      // Path completo al .project.json
   projectData: null,          // Datos del JSON parseado
   hasMarkedDirs: false,       // true si hay directorios marcados
@@ -58,15 +60,16 @@ function updateFileIndicator() {
 }
 
 // Notificaciones
-function showNotification(message) {
+function showNotification(message, isError = false) {
   const notification = document.createElement('div');
   notification.className = 'notification';
   notification.textContent = message;
+  const bg = isError ? '#ef4444' : 'var(--success)';
   notification.style.cssText = `
     position: fixed;
     top: 60px;
     right: 20px;
-    background: var(--success);
+    background: ${bg};
     color: var(--bg);
     padding: 12px 20px;
     border-radius: 8px;
@@ -82,7 +85,11 @@ function showNotification(message) {
   }, 2000);
 }
 
+function showErrorNotification(message) {
+  showNotification(message, true);
+}
+
 // Exportar para uso global
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { state, checkAIStatus, updateAIStatus, markUnsavedChanges, updateFileIndicator, showNotification };
+  module.exports = { state, checkAIStatus, updateAIStatus, markUnsavedChanges, updateFileIndicator, showNotification, showErrorNotification };
 }

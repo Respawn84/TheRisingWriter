@@ -11,7 +11,9 @@ async function openSceneMetadataPanel(file) {
   const gen = state.metaLoadGen;
 
   state.splitMetadataFolder = file.path;
+  state.splitMetadataItem = file;
   state.splitFile = null;
+  hideBackToMetadataButton();
 
   if (!state.splitActive) {
     state.splitActive = true;
@@ -43,7 +45,9 @@ async function openChapterMetadataPanel(folder) {
   const gen = state.metaLoadGen;
 
   state.splitMetadataFolder = folder.path;
+  state.splitMetadataItem = folder;
   state.splitFile = null;
+  hideBackToMetadataButton();
 
   if (!state.splitActive) {
     state.splitActive = true;
@@ -171,9 +175,10 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
       items.map(p => `<option value="${escapeAttr(p)}">${escapeHtml(p)}</option>`).join('');
   }
 
-  function tagsHtml(items) {
+  function tagsHtml(items, clickable = false) {
+    const cls = clickable ? 'meta-tag clickable' : 'meta-tag';
     return (items || []).map(item =>
-      `<span class="meta-tag" data-value="${escapeAttr(item)}">${escapeHtml(item)}<button class="meta-tag-remove" data-value="${escapeAttr(item)}" title="Eliminar">×</button></span>`
+      `<span class="${cls}" data-value="${escapeAttr(item)}">${escapeHtml(item)}<button class="meta-tag-remove" data-value="${escapeAttr(item)}" title="Eliminar">×</button></span>`
     ).join('');
   }
 
@@ -208,7 +213,7 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
       <button id="meta-add-personaje" class="meta-btn-add" ${!personajesItems.length ? 'disabled' : ''}>+ Añadir</button>
     </div>
     <div id="meta-personajes-list" class="meta-tag-list">
-      ${tagsHtml(existing.personajes)}
+      ${tagsHtml(existing.personajes, true)}
     </div>
   </div>
 
@@ -329,11 +334,14 @@ function setupMetadataListeners(folderPath) {
     combo.value = '';
   });
 
-  // Delegación de eventos para los botones × en tags renderizados desde HTML
+  // Delegación de eventos para chips de personaje: × elimina, clic en chip navega al personaje
   document.getElementById('meta-personajes-list')?.addEventListener('click', (e) => {
     if (e.target.classList.contains('meta-tag-remove')) {
       e.target.closest('.meta-tag').remove();
+      return;
     }
+    const chip = e.target.closest('.meta-tag.clickable');
+    if (chip) openPersonajeInSplit(chip.dataset.value);
   });
   document.getElementById('meta-tramas-list')?.addEventListener('click', (e) => {
     if (e.target.classList.contains('meta-tag-remove')) {
@@ -420,6 +428,47 @@ async function saveChapterMetadata(folderPath) {
   }
 }
 
+// Abrir el fichero de un personaje en el split derecho desde un chip de metadatos
+async function openPersonajeInSplit(cleanName) {
+  const ruta = state.projectData?.configuracion?.directorios?.personajes?.ruta;
+  if (!ruta) { showNotification('No hay carpeta de Personajes configurada'); return; }
+
+  let items;
+  try {
+    items = await window.electronAPI.readDirectory(ruta);
+  } catch {
+    showNotification('No se pudo leer la carpeta de Personajes');
+    return;
+  }
+
+  const fileItem = items.filter(i => i.isFile).find(i => {
+    const clean = i.name.replace(/\.[^.]+$/, '').replace(/^\d+-/, '');
+    return clean === cleanName;
+  });
+
+  if (!fileItem) { showNotification(`No se encontró el archivo de "${cleanName}"`); return; }
+
+  cancelPendingMetadataRender();
+  state.splitMetadataFolder = null;
+  state.splitFile = fileItem.path;
+
+  // Activar split si estaba cerrado (sin auto-carga, la hacemos a continuación)
+  if (!state.splitActive) {
+    state.splitActive = true;
+    document.getElementById('editor-main').classList.add('split-active');
+    document.getElementById('editor-split').classList.remove('hidden');
+    document.getElementById('btn-toggle-split').textContent = '⫿';
+    document.getElementById('btn-toggle-split').title = 'Cerrar split';
+  }
+
+  await loadSplitFile(fileItem.path);
+
+  // Sobreescribir nombre con icono de personaje
+  document.getElementById('split-file-name').textContent = `👤 ${cleanName}`;
+  // Mostrar botón de volver
+  document.getElementById('btn-back-to-metadata').classList.remove('hidden');
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { openChapterMetadataPanel, openSceneMetadataPanel };
+  module.exports = { openChapterMetadataPanel, openSceneMetadataPanel, openPersonajeInSplit };
 }

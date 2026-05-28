@@ -1,5 +1,10 @@
 // === SPLIT VERTICAL ===
 
+// Oculta el botón "← Volver a metadatos" (disponible globalmente)
+function hideBackToMetadataButton() {
+  document.getElementById('btn-back-to-metadata')?.classList.add('hidden');
+}
+
 // Toggle split vertical
 function toggleSplit() {
   state.splitActive = !state.splitActive;
@@ -33,18 +38,20 @@ function hideSplit() {
   const editorMain = document.getElementById('editor-main');
   const editorSplit = document.getElementById('editor-split');
   const btnToggle = document.getElementById('btn-toggle-split');
-  
+
   editorMain.classList.remove('split-active');
   editorSplit.classList.add('hidden');
   btnToggle.textContent = '⫽';
   btnToggle.title = 'Split vertical';
-  
+
   state.splitFile = null;
+  hideBackToMetadataButton();
 }
 
 // Abrir archivo en split derecho
 async function openInSplit(file) {
   cancelPendingMetadataRender(); // cancela cualquier carga de metadatos en vuelo
+  hideBackToMetadataButton();
   state.splitFile = file.path;
   
   // Activar split si no está activo
@@ -120,7 +127,7 @@ function renderMarkdownSections(text) {
   for (const section of sections) {
     if (!Array.isArray(section.lines)) continue;
     const body = section.lines.join('\n').trim();
-    html += `<details class="split-section" open>
+    html += `<details class="split-section">
   <summary class="split-summary">${escapeHtml(section.title)}</summary>
   <div class="split-body split-md">${body ? mdParse(body) : ''}</div>
 </details>`;
@@ -165,7 +172,7 @@ function renderCollapsibleSections(text) {
     while (bodyLines.length && bodyLines[bodyLines.length - 1].trim() === '') bodyLines.pop();
     const body = bodyLines.join('\n');
 
-    html += `<details class="split-section" open>
+    html += `<details class="split-section">
   <summary class="split-summary">${escapeHtml(title)}</summary>
   <pre class="split-body">${escapeHtml(body)}</pre>
 </details>`;
@@ -192,6 +199,20 @@ function closeSplit() {
 function setupSplitListeners() {
   document.getElementById('btn-toggle-split').addEventListener('click', toggleSplit);
   document.getElementById('btn-close-split').addEventListener('click', closeSplit);
+
+  document.getElementById('btn-back-to-metadata').addEventListener('click', () => {
+    const item = state.splitMetadataItem;
+    hideBackToMetadataButton();
+    if (!item) return;
+
+    if (item.isDirectory) {
+      openChapterMetadataPanel(item);
+    } else if (isTramaFile(item.path)) {
+      openTramaMetadataPanel(item);
+    } else {
+      openSceneMetadataPanel(item);
+    }
+  });
 }
 
 if (typeof module !== 'undefined' && module.exports) {

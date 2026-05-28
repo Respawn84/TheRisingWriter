@@ -23,6 +23,161 @@ async function loadProject(path) {
   renderFileTree(fileTree, filteredItems, 0);
 }
 
+// === DRAG AND DROP ===
+
+let currentDragOverEl = null;
+
+function clearDragOver() {
+  if (currentDragOverEl) {
+    currentDragOverEl.classList.remove('drag-over');
+    currentDragOverEl = null;
+  }
+}
+
+async function handleFileDrop(dragData, destFolderPath) {
+  const { path: sourcePath, name: sourceName, isDirectory } = dragData;
+
+  // No-op: misma carpeta padre
+  const sourceParent = sourcePath.substring(0, sourcePath.lastIndexOf('/'));
+  if (sourceParent === destFolderPath) return;
+
+  // Evitar mover una carpeta dentro de sí misma o de un descendiente
+  if (isDirectory && (destFolderPath === sourcePath || destFolderPath.startsWith(sourcePath + '/'))) {
+    showErrorNotification('No se puede mover una carpeta dentro de sí misma');
+    return;
+  }
+
+  // Verificar conflicto de nombre en destino ANTES de mover
+  let destItems;
+  try {
+    destItems = await window.electronAPI.readDirectory(destFolderPath);
+  } catch {
+    showErrorNotification('No se pudo leer la carpeta destino');
+    return;
+  }
+
+  if (destItems.some(item => item.name === sourceName)) {
+    showErrorNotification(`"${sourceName}" ya existe en la carpeta destino`);
+    return;
+  }
+
+  // Mover
+  const result = await window.electronAPI.moveItem(sourcePath, destFolderPath);
+  if (result.success) {
+    if (state.currentFile === sourcePath) state.currentFile = result.path;
+    showNotification(`Movido: ${sourceName}`);
+    await reloadPreservingExpanded();
+  } else {
+    showErrorNotification(`Error al mover: ${result.error || 'desconocido'}`);
+  }
+}
+
+function addDragSource(el, item) {
+  el.setAttribute('draggable', 'true');
+
+  el.addEventListener('dragstart', (e) => {
+    e.stopPropagation();
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/trw-item', JSON.stringify({
+      path: item.path,
+      name: item.name,
+      isDirectory: !!item.isDirectory
+    }));
+    // Pequeño delay para que el snapshot del drag image se tome antes de aplicar opacidad
+    setTimeout(() => el.classList.add('dragging'), 0);
+  });
+
+  el.addEventListener('dragend', () => {
+    el.classList.remove('dragging');
+    clearDragOver();
+  });
+}
+
+function addDropTarget(el, folderPath) {
+  el.addEventListener('dragover', (e) => {
+    if (!e.dataTransfer.types.includes('application/trw-item')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (currentDragOverEl !== el) {
+      clearDragOver();
+      currentDragOverEl = el;
+      el.classList.add('drag-over');
+    }
+  });
+
+  el.addEventListener('dragleave', (e) => {
+    if (!el.contains(e.relatedTarget)) {
+      el.classList.remove('drag-over');
+      if (currentDragOverEl === el) currentDragOverEl = null;
+    }
+  });
+
+  el.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    el.classList.remove('drag-over');
+    if (currentDragOverEl === el) currentDragOverEl = null;
+
+    const raw = e.dataTransfer.getData('application/trw-item');
+    if (!raw) return;
+    try {
+      await handleFileDrop(JSON.parse(raw), folderPath);
+    } catch {
+      showErrorNotification('Error inesperado al mover');
+    }
+  });
+}
+
+// === PRESERVACIÓN DE ESTADO DE EXPANSIÓN ===
+
+// Devuelve las rutas de todas las carpetas actualmente expandidas
+function getExpandedPaths() {
+  return Array.from(document.querySelectorAll('.folder-item.expanded'))
+    .map(el => el.dataset.path);
+}
+
+// Expande programáticamente una carpeta por su ruta (si ya está en el DOM)
+async function expandFolderByPath(folderPath) {
+  const folderEl = document.querySelector(`.folder-item[data-path="${CSS.escape(folderPath)}"]`);
+  if (!folderEl || folderEl.classList.contains('expanded')) return;
+
+  const paddingLeft = parseInt(folderEl.style.paddingLeft) || 8;
+  const level = Math.round((paddingLeft - 8) / 12);
+
+  folderEl.classList.remove('collapsed');
+  folderEl.classList.add('expanded');
+
+  const children = await window.electronAPI.readDirectory(folderPath);
+  const childContainer = document.createElement('div');
+  childContainer.className = 'folder-children';
+  renderFileTree(childContainer, children, level + 1);
+  folderEl.after(childContainer);
+}
+
+// Recarga el proyecto preservando las carpetas expandidas.
+// Si se ha renombrado una carpeta, pasa renamedFrom/renamedTo para actualizar las rutas.
+async function reloadPreservingExpanded(renamedFrom = null, renamedTo = null) {
+  let expandedPaths = getExpandedPaths();
+
+  if (renamedFrom && renamedTo) {
+    expandedPaths = expandedPaths.map(p => {
+      if (p === renamedFrom) return renamedTo;
+      if (p.startsWith(renamedFrom + '/')) return renamedTo + p.slice(renamedFrom.length);
+      return p;
+    });
+  }
+
+  // Expandir de más superficial a más profundo (los padres deben existir en el DOM antes que los hijos)
+  expandedPaths.sort((a, b) => a.split('/').length - b.split('/').length);
+
+  await loadProject(state.projectPath);
+
+  for (const path of expandedPaths) {
+    await expandFolderByPath(path);
+  }
+}
+
 // Renderizar árbol de archivos
 function renderFileTree(container, items, level = 0) {
   container.innerHTML = '';
@@ -77,10 +232,18 @@ function createFolderElement(folder, level) {
         next.remove();
       }
     }
+
+    // Mostrar metadatos del capítulo automáticamente al hacer clic
+    if (isChapterFolder(folder.path)) {
+      openChapterMetadataPanel(folder);
+    }
   });
-  
+
   el.addEventListener('contextmenu', (e) => showFileContextMenu(e, folder));
-  
+
+  addDragSource(el, folder);
+  addDropTarget(el, folder.path);
+
   return el;
 }
 
@@ -103,10 +266,11 @@ function createFileElement(file, level) {
   el.innerHTML = `${iconHtml}<span>${file.name}</span>`;
   el.dataset.path = file.path;
   
-  //el.addEventListener('click', () => openFile(file));
   el.addEventListener('click', async () => await attemptOpenFile(file));
   el.addEventListener('contextmenu', (e) => showFileContextMenu(e, file));
-  
+
+  addDragSource(el, file);
+
   return el;
 }
 
@@ -144,6 +308,20 @@ async function openFile(file) {
   
   // Abrir en sistema de pestañas
   openTab(file);
+
+  // Mostrar metadatos automáticamente según tipo de fichero
+  const capitulosRuta = state.projectData?.configuracion?.directorios?.capitulos?.ruta;
+  const fileIsScene = !file.isDirectory && capitulosRuta && (() => {
+    const parent = file.path.substring(0, file.path.lastIndexOf('/'));
+    const grandparent = parent.substring(0, parent.lastIndexOf('/'));
+    return grandparent === capitulosRuta;
+  })();
+
+  if (fileIsScene) {
+    openSceneMetadataPanel(file);
+  } else if (isTramaFile(file.path)) {
+    openTramaMetadataPanel(file);
+  }
 }
 
 
@@ -187,6 +365,10 @@ function showFileContextMenu(e, item) {
   if (newChapterBtn) {
     newChapterBtn.style.display = isCapitulos ? 'flex' : 'none';
   }
+  const newFolderHereBtn = menu.querySelector('[data-action="new-folder-here"]');
+  if (newFolderHereBtn) {
+    newFolderHereBtn.style.display = item.isDirectory ? 'flex' : 'none';
+  }
   const newFileBtn = menu.querySelector('[data-action="new-file-here"]');
   if (newFileBtn) {
     newFileBtn.style.display = item.isDirectory ? 'flex' : 'none';
@@ -229,18 +411,22 @@ function hideContextMenu() {
 async function createFolder() {
   const name = document.getElementById('input-folder-name').value.trim();
   if (!name) return;
-  
-  if (!state.projectPath) {
+
+  const targetFolder = (state.itemToRename && state.itemToRename.isDirectory)
+    ? state.itemToRename.path
+    : (state.projectRootPath || state.projectPath);
+
+  if (!targetFolder) {
     document.getElementById('folder-error').textContent = 'No hay proyecto abierto';
     document.getElementById('folder-error').classList.remove('hidden');
     return;
   }
-  
-  const result = await window.electronAPI.createFolder(state.projectPath, name);
+
+  const result = await window.electronAPI.createFolder(targetFolder, name);
   if (result.success) {
     closeModal('modal-folder');
     document.getElementById('input-folder-name').value = '';
-    loadProject(state.projectPath);
+    await reloadPreservingExpanded();
   } else {
     document.getElementById('folder-error').textContent = result.error;
     document.getElementById('folder-error').classList.remove('hidden');
@@ -266,12 +452,19 @@ async function confirmRename() {
   }
   
   const result = await window.electronAPI.renameItem(state.itemToRename.path, newName);
-  
+
   if (result.success) {
+    const wasDirectory = state.itemToRename.isDirectory;
+    const oldPath = state.itemToRename.path;
+    const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/'));
+    const newPath = parentDir + '/' + newName;
+
     closeModal('modal-rename');
     showNotification(`Renombrado a: ${newName}`);
-    loadProject(state.projectPath);
     state.itemToRename = null;
+
+    // Para carpetas, sustituir rutas expandidas afectadas (path cascade)
+    await reloadPreservingExpanded(wasDirectory ? oldPath : null, wasDirectory ? newPath : null);
   } else {
     errorDiv.textContent = result.error || 'Error al renombrar';
     errorDiv.classList.remove('hidden');
@@ -295,27 +488,63 @@ async function confirmDelete() {
       document.getElementById('editor').value = '';
       document.getElementById('file-name').textContent = 'Sin archivo';
     }
-    
-    loadProject(state.projectPath);
+
     state.itemToRename = null;
+    await reloadPreservingExpanded();
   } else {
     alert(`Error al borrar: ${result.error}`);
   }
 }
 
+// === RESIZE DEL SIDEBAR ===
+
+function setupSidebarResize() {
+  const resizer = document.getElementById('sidebar-resizer');
+  const sidebar = document.getElementById('sidebar');
+  const MIN_WIDTH = 250;
+
+  // Restaurar ancho guardado
+  const saved = parseInt(localStorage.getItem('sidebarWidth'));
+  if (saved && saved >= MIN_WIDTH) {
+    sidebar.style.width = saved + 'px';
+  }
+
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const startX     = e.clientX;
+    const startWidth = sidebar.offsetWidth;
+
+    resizer.classList.add('resizing');
+    document.body.style.cursor     = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    function onMouseMove(e) {
+      const newWidth = Math.max(MIN_WIDTH, startWidth + (e.clientX - startX));
+      sidebar.style.width = newWidth + 'px';
+    }
+
+    function onMouseUp() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup',   onMouseUp);
+      resizer.classList.remove('resizing');
+      document.body.style.cursor     = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('sidebarWidth', sidebar.offsetWidth);
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup',   onMouseUp);
+  });
+}
+
 // Configurar listeners del sidebar
 function setupFileSystemListeners() {
-  document.getElementById('btn-open').addEventListener('click', async () => {
-    const result = await window.electronAPI.openFolderDialog();
-    if (result.success) loadProject(result.path);
-  });
-  
+  setupSidebarResize();
   document.getElementById('btn-open-empty').addEventListener('click', async () => {
     const result = await window.electronAPI.openFolderDialog();
     if (result.success) loadProject(result.path);
   });
-  
-  document.getElementById('btn-new-folder').addEventListener('click', () => openModal('modal-folder'));
+
   
   // Menú contextual de archivos
   document.getElementById('file-context-menu').querySelectorAll('.menu-item').forEach(item => {
@@ -326,12 +555,12 @@ function setupFileSystemListeners() {
       
       if (action === 'new-chapter') {
         openNewChapterModal();
+      } else if (action === 'new-folder-here') {
+        openModal('modal-folder');
       } else if (action === 'new-file-here') {
         openNewFileInFolderModal();
       } else if (action === 'rename') {
         openRenameModal();
-      } else if (action === 'move') {
-        openMoveModal();
       } else if (action === 'delete') {
         openDeleteModal();
       } else if (action === 'open-split') {

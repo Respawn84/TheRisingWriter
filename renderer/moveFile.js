@@ -59,9 +59,9 @@ async function confirmMove() {
     if (state.currentFile === state.itemToRename.path) {
       state.currentFile = result.path;
     }
-    
-    loadProject(state.projectPath);
+
     state.itemToRename = null;
+    await reloadPreservingExpanded();
   } else {
     errorDiv.textContent = result.error || 'Error al mover';
     errorDiv.classList.remove('hidden');
