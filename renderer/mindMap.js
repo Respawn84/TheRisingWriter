@@ -46,7 +46,15 @@ async function buildMindMapData() {
   const capEntries = await window.electronAPI.readDirectory(capitulosRuta);
   const chapters = capEntries.filter(e => e.isDirectory).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Índice nombre→path de ficheros de personajes
+  // Normaliza un nombre para comparación: minúsculas, sin acentos, guiones/guionbajos→espacio
+  function normalizeName(s) {
+    return s.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[-_]+/g, ' ')
+      .trim();
+  }
+
+  // Índice nombre normalizado→path de ficheros de personajes
   let charFileIndex = {};
   if (personajesRuta) {
     try {
@@ -54,7 +62,7 @@ async function buildMindMapData() {
       charEntries.forEach(e => {
         if (!e.isDirectory) {
           const base = e.name.replace(/\.[^.]+$/, '');
-          charFileIndex[base.toLowerCase()] = e.path;
+          charFileIndex[normalizeName(base)] = e.path;
         }
       });
     } catch { /* directorio vacío o no configurado */ }
@@ -93,7 +101,7 @@ async function buildMindMapData() {
           sceneNode.children.push({
             label: nombre,
             type: 'character',
-            path: charFileIndex[nombre.toLowerCase()] || null,
+            path: charFileIndex[normalizeName(nombre)] || null,
             isDirectory: false,
             children: []
           });
@@ -168,22 +176,23 @@ function computeLayout(chapters) {
 
 function svgNode(node) {
   const hasFile = !!node.path;
-  // Personaje sin fichero asociado: colores atenuados para indicar que no es clicable
+  // Personaje sin fichero: colores atenuados
   let c = MM.COLORS[node.type];
   if (node.type === 'character' && !hasFile) {
     c = { fill: '#111a11', stroke: '#2d5a2d', text: '#4a7a4a' };
   }
 
-  const clickable = hasFile ? 'style="cursor:pointer"' : 'style="opacity:0.55"';
-  const pathAttr = hasFile
+  // Todos los nodos son clicables; el handler decide qué hacer según tipo y path
+  const pathAttr = node.path
     ? `data-path="${node.path.replace(/"/g, '&quot;')}" data-is-dir="${node.isDirectory}"`
     : '';
 
   return `
-    <g class="mm-node" ${clickable} ${pathAttr} data-type="${node.type}">
+    <g class="mm-node" style="cursor:pointer" ${pathAttr} data-type="${node.type}" data-label="${escapeXml(node.label)}">
       <rect x="${node.x}" y="${node.y}"
             width="${MM.NODE_W}" height="${MM.NODE_H}" rx="8"
-            fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>
+            fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"
+            ${!hasFile && node.type === 'character' ? 'stroke-dasharray="4 3"' : ''}/>
       <text x="${node.x + MM.NODE_W / 2}" y="${node.y + MM.NODE_H / 2 + 5}"
             text-anchor="middle" fill="${c.text}"
             font-size="12"
@@ -347,24 +356,34 @@ function setupMindMapInteraction() {
 
   svg.style.cursor = 'grab';
 
-  // Clic en nodos
+  // Clic en nodos — alcanza todos los nodos independientemente de si tienen path
   svg.addEventListener('click', async (e) => {
-    const nodeEl = e.target.closest('.mm-node[data-path]');
+    const nodeEl = e.target.closest('.mm-node');
     if (!nodeEl) return;
 
-    const filePath = nodeEl.dataset.path;
+    const filePath = nodeEl.dataset.path || null;
     const type = nodeEl.dataset.type;
-    const label = nodeEl.querySelector('text')?.textContent?.trim() || '';
+    const label = nodeEl.dataset.label || nodeEl.querySelector('text')?.textContent?.trim() || '';
 
     if (type === 'chapter') {
-      // Capítulo → metadatos en split derecho
+      // Capítulo → panel de metadatos en split derecho
+      if (!filePath) return;
       const item = { name: label, path: filePath, isDirectory: true };
       openChapterMetadataPanel(item);
+
     } else if (type === 'scene') {
-      // Escena → abrir en split derecho (el mapa permanece visible)
-      await openInSplit({ name: label, path: filePath });
+      // Escena → abrir en el editor principal como pestaña; el mapa permanece
+      if (!filePath) return;
+      const fileName = filePath.split('/').pop();
+      openTab({ name: fileName, path: filePath });
+      showNotification(`Escena cargada: ${fileName}`);
+
     } else if (type === 'character') {
-      // Personaje → abrir en split derecho (el mapa sigue visible)
+      // Personaje → abrir en split derecho
+      if (!filePath) {
+        showNotification(`Sin fichero para "${label}"`, true);
+        return;
+      }
       await openInSplit({ name: label, path: filePath });
     }
   });
