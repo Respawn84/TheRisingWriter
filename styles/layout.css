@@ -6,18 +6,23 @@
   height: 100vh;
 }
 
-/* ── SIDEBAR — full height, glass, incluye traffic lights ── */
+/* ── SIDEBAR — panel flotante redondeado, estilo macOS ── */
 #sidebar {
   width: 250px;
   min-width: 250px;
-  height: 100%;
+  height: calc(100vh - 16px); /* 8px arriba + 8px abajo */
+  margin: 8px 0 8px 8px;
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
-  border-right: 1px solid var(--glass-border);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55),
+              0 2px 8px  rgba(0, 0, 0, 0.30);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden; /* recorta hijos a las esquinas redondeadas */
 }
 
 /* Zona reservada para los traffic lights nativos — arrastrable */
@@ -44,17 +49,18 @@
 }
 
 #sidebar-resizer {
-  width: 5px;
+  width: 8px;
   flex-shrink: 0;
   cursor: col-resize;
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent;
   transition: background 0.15s;
   z-index: 10;
 }
 
 #sidebar-resizer:hover,
 #sidebar-resizer.resizing {
-  background: rgba(91, 156, 246, 0.5);
+  background: rgba(91, 156, 246, 0.20);
+  border-radius: 4px;
 }
 
 /* ── COLUMNA DEL EDITOR ── */
