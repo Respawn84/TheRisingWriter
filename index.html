@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Rising Editor</title>
   <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/tramaTimeline.css">
 </head>
 <body>
   <!-- Toolbar -->
@@ -30,6 +31,7 @@
       <div class="sidebar-header">
         <button id="btn-project-metadata" class="btn-icon" title="Metadatos del proyecto">📋</button>
         <button id="btn-mindmap" class="btn-icon" title="Mapa mental">🗺️</button>
+        <button id="btn-timeline" class="btn-icon" title="Línea temporal de tramas">📊</button>
       </div>
       <div id="file-tree">
         <div class="empty-state">
@@ -68,6 +70,16 @@
 
 
 
+
+      <!-- Trama Timeline Resizer + Panel -->
+      <div id="timeline-resizer" class="hidden"></div>
+      <div id="timeline-panel" class="hidden">
+        <div id="timeline-toolbar">
+          <span id="timeline-title">Línea temporal de tramas</span>
+          <div id="timeline-hint">Rueda: zoom · Arrastrar: mover · Clic escena: abrir · Clic trama: ver en split</div>
+        </div>
+        <div id="timeline-container"></div>
+      </div>
 
       <!-- Mind Map Resizer + Panel -->
       <div id="mindmap-resizer" class="hidden"></div>
@@ -577,6 +589,7 @@
   <script src="renderer/aiPanel.js"></script>
   <script src="renderer/newProject.js"></script>
   <script src="renderer/mindMap.js"></script>
+  <script src="renderer/tramaTimeline.js"></script>
   <script src="renderer/app.js"></script>
 </body>
 </html>
