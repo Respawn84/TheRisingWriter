@@ -18,16 +18,17 @@ function toggleSplit() {
 
 // Mostrar split
 function showSplit() {
-  const editorMain = document.getElementById('editor-main');
+  const editorMain  = document.getElementById('editor-main');
   const editorSplit = document.getElementById('editor-split');
-  const btnToggle = document.getElementById('btn-toggle-split');
-  
+  const resizer     = document.getElementById('split-resizer');
+  const btnToggle   = document.getElementById('btn-toggle-split');
+
   editorMain.classList.add('split-active');
   editorSplit.classList.remove('hidden');
-  btnToggle.textContent = '⫿'; // Icono diferente cuando activo
+  resizer.classList.remove('hidden');
+  btnToggle.textContent = '⫿';
   btnToggle.title = 'Cerrar split';
-  
-  // Si hay archivo en split, cargarlo
+
   if (state.splitFile) {
     loadSplitFile(state.splitFile);
   }
@@ -35,12 +36,14 @@ function showSplit() {
 
 // Ocultar split
 function hideSplit() {
-  const editorMain = document.getElementById('editor-main');
+  const editorMain  = document.getElementById('editor-main');
   const editorSplit = document.getElementById('editor-split');
-  const btnToggle = document.getElementById('btn-toggle-split');
+  const resizer     = document.getElementById('split-resizer');
+  const btnToggle   = document.getElementById('btn-toggle-split');
 
   editorMain.classList.remove('split-active');
   editorSplit.classList.add('hidden');
+  resizer.classList.add('hidden');
   btnToggle.textContent = '⫽';
   btnToggle.title = 'Split vertical';
 
@@ -196,9 +199,53 @@ function closeSplit() {
 }
 
 // Configurar listeners de split
+// === RESIZE DEL PANEL DERECHO ===
+
+function setupSplitResize() {
+  const resizer     = document.getElementById('split-resizer');
+  const editorSplit = document.getElementById('editor-split');
+  const MIN_WIDTH   = 400; // igual que el modal de buscar y reemplazar
+
+  // Restaurar ancho guardado
+  const saved = parseInt(localStorage.getItem('splitWidth'));
+  if (saved && saved >= MIN_WIDTH) {
+    editorSplit.style.width = saved + 'px';
+  }
+
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const startX      = e.clientX;
+    const startWidth  = editorSplit.offsetWidth;
+
+    resizer.classList.add('resizing');
+    document.body.style.cursor     = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    function onMouseMove(e) {
+      // Arrastrar hacia la izquierda agranda el panel derecho
+      const delta    = startX - e.clientX;
+      const newWidth = Math.max(MIN_WIDTH, startWidth + delta);
+      editorSplit.style.width = newWidth + 'px';
+    }
+
+    function onMouseUp() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup',   onMouseUp);
+      resizer.classList.remove('resizing');
+      document.body.style.cursor     = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('splitWidth', editorSplit.offsetWidth);
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup',   onMouseUp);
+  });
+}
+
 function setupSplitListeners() {
   document.getElementById('btn-toggle-split').addEventListener('click', toggleSplit);
   document.getElementById('btn-close-split').addEventListener('click', closeSplit);
+  setupSplitResize();
 
   document.getElementById('btn-back-to-metadata').addEventListener('click', () => {
     const item = state.splitMetadataItem;
