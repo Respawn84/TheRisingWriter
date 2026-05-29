@@ -56,6 +56,7 @@ function setupAllListeners() {
   setupAIPanelListeners();
   setupNewProjectListeners();
   setupMindMapListeners();
+  setupTramaTimelineListeners();
 }
 
 // Cargar al iniciar

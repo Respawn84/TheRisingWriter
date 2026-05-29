@@ -1,0 +1,106 @@
+/* ====================================
+   TRAMA TIMELINE PANEL
+   Temporalidad de escenas por trama
+   Encastrado en el área del editor
+   ==================================== */
+
+#timeline-resizer {
+  height: 5px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+#timeline-resizer:hover,
+#timeline-resizer.resizing {
+  background: var(--accent, #4a9eff);
+}
+
+#timeline-resizer.hidden {
+  display: none;
+}
+
+#timeline-panel {
+  flex-shrink: 0;
+  height: 320px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+#timeline-panel.hidden {
+  display: none;
+}
+
+#timeline-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+}
+
+#timeline-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#timeline-hint {
+  flex: 1;
+  text-align: right;
+  font-size: 11px;
+  color: #475569;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#timeline-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+#timeline-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+#timeline-svg .tl-node rect {
+  transition: filter 0.12s;
+}
+
+#timeline-svg .tl-node[data-path]:hover rect {
+  filter: brightness(1.35);
+}
+
+#btn-timeline.active {
+  background: var(--accent, #4a9eff);
+  color: #fff;
+  border-radius: 4px;
+}
+
+.tl-loading,
+.tl-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.6;
+}
