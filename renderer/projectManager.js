@@ -72,7 +72,8 @@ async function loadOrCreateProject(dirPath) {
     }
     console.log(state);
     if (!result.existed) {
-      showNotification('Proyecto creado: project.json');
+      const jsonName = result.path.split('/').pop();
+      showNotification(`Proyecto creado: ${jsonName}`);
     }
     
     return true;

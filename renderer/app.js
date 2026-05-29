@@ -50,6 +50,7 @@ function setupAllListeners() {
   setupMoveFileListeners();
   setupFindReplaceListeners();
   setupAIPanelListeners();
+  setupNewProjectListeners();
 }
 
 // Cargar al iniciar

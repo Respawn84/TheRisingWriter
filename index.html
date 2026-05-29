@@ -181,6 +181,48 @@
       </button>
     </div>
   </div>
+  <!-- Modal: Nuevo Proyecto -->
+  <div id="modal-new-project" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>✨ Nuevo Proyecto</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Título de la novela: <span style="color:var(--accent)">*</span></label>
+          <input type="text" id="new-project-title" class="modal-input" placeholder="Mi novela">
+        </div>
+        <div class="form-group">
+          <label>Autor:</label>
+          <input type="text" id="new-project-author" class="modal-input" placeholder="Nombre del autor (opcional)">
+        </div>
+        <div class="form-group">
+          <label>Nombre de la carpeta: <span style="color:var(--accent)">*</span></label>
+          <input type="text" id="new-project-folder" class="modal-input" placeholder="mi-novela">
+          <small style="color:var(--text-muted);display:block;margin-top:4px;">Nombre de la carpeta que se creará en la ubicación elegida</small>
+        </div>
+        <div class="form-group">
+          <label>Ubicación: <span style="color:var(--accent)">*</span></label>
+          <div class="cover-field">
+            <input type="text" id="new-project-path" class="modal-input" placeholder="Selecciona dónde crear el proyecto" readonly>
+            <button id="btn-select-project-path" class="btn-secondary btn-cover-pick">Seleccionar...</button>
+          </div>
+        </div>
+        <div id="new-project-preview" class="hidden" style="margin-top:12px;padding:10px;background:var(--bg-secondary);border-radius:6px;font-size:0.85em;color:var(--text-muted);">
+          <strong style="color:var(--text-primary);">Se creará:</strong>
+          <div id="new-project-preview-text" style="margin-top:6px;line-height:1.8;font-family:monospace;"></div>
+        </div>
+        <div id="new-project-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-new-project" class="btn-primary">Crear proyecto</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Nuevo Capítulo -->
   <div id="modal-new-chapter" class="modal hidden">
     <div class="modal-backdrop"></div>
@@ -517,6 +559,7 @@
   <script src="renderer/exportDoc.js"></script>
   <script src="renderer/exportEpub.js"></script>
   <script src="renderer/aiPanel.js"></script>
+  <script src="renderer/newProject.js"></script>
   <script src="renderer/app.js"></script>
 </body>
 </html>

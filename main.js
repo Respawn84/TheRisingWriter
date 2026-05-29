@@ -48,6 +48,12 @@ function createMenu() {
       label: 'Archivo',
       submenu: [
         {
+          label: 'Nuevo proyecto...',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => mainWindow.webContents.send('new-project')
+        },
+        { type: 'separator' },
+        {
           label: 'Abrir carpeta...',
           accelerator: 'CmdOrCtrl+O',
           click: openProjectFolder
@@ -56,7 +62,7 @@ function createMenu() {
           label: 'Abrir proyecto...',
           accelerator: 'CmdOrCtrl+P',
           click: openProjectFile
-        },        
+        },
         { type: 'separator' },
         {
           label: 'Guardar',
@@ -314,12 +320,20 @@ ipcMain.handle('list-folders', async (event, dirPath) => {
 // Handler: Cargar o crear proyecto JSON
 ipcMain.handle('load-or-create-project', async (event, dirPath) => {
   try {
-    if (dirPath.endsWith('.json')) {
-      // Si se pasa un fichero JSON directamente, usar esa ruta
-      dirPath = dirPath;
-    }else{
-      // Si se pasa una carpeta, usar project.json dentro de esa carpeta
-      dirPath = path.join(dirPath, 'project.json');
+    if (!dirPath.endsWith('.json')) {
+      // Buscar cualquier .json en la raíz de la carpeta que tenga estructura de proyecto
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      const jsonFiles = entries.filter(e => e.isFile() && e.name.endsWith('.json'));
+      let found = null;
+      for (const f of jsonFiles) {
+        try {
+          const raw = await fs.readFile(path.join(dirPath, f.name), 'utf-8');
+          const parsed = JSON.parse(raw);
+          if (parsed.version && parsed.configuracion) { found = f.name; break; }
+        } catch { /* ignorar ficheros JSON no válidos */ }
+      }
+      const projectName = path.basename(dirPath);
+      dirPath = path.join(dirPath, found || `${projectName}.json`);
     }
     
     const jsonPath = dirPath; // Ahora se pasa directamente la ruta del fichero JSON
@@ -390,6 +404,62 @@ ipcMain.handle('calculate-chapter-stats', async (event, folderPath) => {
     const avgWordsPerScene = scenes > 0 ? Math.round(totalWords / scenes) : 0;
 
     return { success: true, scenes, totalWords, avgWordsPerScene };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Handler: Crear nuevo proyecto con estructura de carpetas
+ipcMain.handle('create-new-project', async (event, { parentPath, folderName, titulo, autor }) => {
+  try {
+    const projectPath = path.join(parentPath, folderName);
+
+    // Verificar que no existe ya
+    try {
+      await fs.access(projectPath);
+      return { success: false, error: 'Ya existe una carpeta con ese nombre en la ruta seleccionada.' };
+    } catch { /* no existe, continuar */ }
+
+    // Crear carpeta raíz y subcarpetas
+    await fs.mkdir(projectPath, { recursive: true });
+    await fs.mkdir(path.join(projectPath, 'capitulos'));
+    await fs.mkdir(path.join(projectPath, 'personajes'));
+    await fs.mkdir(path.join(projectPath, 'tramas'));
+    await fs.mkdir(path.join(projectPath, 'mundo'));
+
+    // Nombre del fichero JSON igual que la carpeta
+    const jsonName = folderName.replace(/\s+/g, '-').toLowerCase() + '.json';
+    const jsonPath = path.join(projectPath, jsonName);
+
+    const projectData = {
+      version: "1.0",
+      proyecto: {
+        titulo: titulo || folderName,
+        autor: autor || "",
+        fecha: new Date().toISOString().split('T')[0],
+        saga: "",
+        fechaPrevista: "",
+        rutaPortada: ""
+      },
+      configuracion: {
+        directorios: {
+          capitulos: { ruta: path.join(projectPath, 'capitulos'), compilar: true },
+          personajes: { ruta: path.join(projectPath, 'personajes'), compilar: false },
+          tramas: { ruta: path.join(projectPath, 'tramas'), compilar: false },
+          mundo: { ruta: path.join(projectPath, 'mundo'), compilar: false },
+          papelera: { ruta: "", compilar: false },
+          otros: []
+        },
+        compilarDirectorios: [],
+        omitirEscenas: []
+      },
+      metadatos: {},
+      metadatosTramas: {}
+    };
+
+    await fs.writeFile(jsonPath, JSON.stringify(projectData, null, 2), 'utf-8');
+
+    return { success: true, jsonPath, projectPath };
   } catch (error) {
     return { success: false, error: error.message };
   }

@@ -46,5 +46,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSaveFile: (callback) => ipcRenderer.on('save-file', callback),
   onShowUsageStats: (callback) => ipcRenderer.on('show-usage-stats', callback),
   onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback),
-  onExportEpub: (callback) => ipcRenderer.on('export-epub', callback)
+  onExportEpub: (callback) => ipcRenderer.on('export-epub', callback),
+  onNewProject: (callback) => ipcRenderer.on('new-project', callback),
+  createNewProject: (params) => ipcRenderer.invoke('create-new-project', params)
 });
