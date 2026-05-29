@@ -167,9 +167,15 @@ function computeLayout(chapters) {
 // ====================================
 
 function svgNode(node) {
-  const c = MM.COLORS[node.type];
-  const clickable = node.path ? 'style="cursor:pointer"' : '';
-  const pathAttr = node.path
+  const hasFile = !!node.path;
+  // Personaje sin fichero asociado: colores atenuados para indicar que no es clicable
+  let c = MM.COLORS[node.type];
+  if (node.type === 'character' && !hasFile) {
+    c = { fill: '#111a11', stroke: '#2d5a2d', text: '#4a7a4a' };
+  }
+
+  const clickable = hasFile ? 'style="cursor:pointer"' : 'style="opacity:0.55"';
+  const pathAttr = hasFile
     ? `data-path="${node.path.replace(/"/g, '&quot;')}" data-is-dir="${node.isDirectory}"`
     : '';
 
@@ -347,19 +353,20 @@ function setupMindMapInteraction() {
     if (!nodeEl) return;
 
     const filePath = nodeEl.dataset.path;
-    const isDir = nodeEl.dataset.isDir === 'true';
     const type = nodeEl.dataset.type;
     const label = nodeEl.querySelector('text')?.textContent?.trim() || '';
 
-    if (!filePath) {
-      showNotification(`${label} — sin fichero asociado`);
-      return;
-    }
-
     if (type === 'chapter') {
+      // Capítulo → metadatos en split derecho
       const item = { name: label, path: filePath, isDirectory: true };
       openChapterMetadataPanel(item);
-    } else {
+    } else if (type === 'scene') {
+      // Escena → abrir en el editor principal y volver a la vista del editor
+      showEditorView();
+      const fileName = filePath.split('/').pop();
+      openTab({ name: fileName, path: filePath });
+    } else if (type === 'character') {
+      // Personaje → abrir en split derecho (el mapa sigue visible)
       await openInSplit({ name: label, path: filePath });
     }
   });
