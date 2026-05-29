@@ -39,7 +39,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  background: var(--bg);
+  background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
@@ -50,13 +50,13 @@
 }
 
 .tab:hover {
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .tab.active {
-  background: var(--primary);
-  color: var(--bg);
-  border-color: var(--primary);
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
 }
 
 .tab-name {

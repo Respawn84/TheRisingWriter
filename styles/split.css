@@ -12,7 +12,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--bg-primary);
   transition: flex 0.3s ease;
   min-width: 0; /* Evita que el contenido expanda el panel más allá de su flex allocation */
 }
