@@ -29,23 +29,18 @@
 
     <div id="sidebar-resizer"></div>
 
-    <!-- Columna del editor: toolbar + contenido -->
+    <!-- Columna del editor: solo contenido, sin toolbar -->
     <div id="editor-column">
-      <div id="toolbar">
-        <div class="toolbar-left">
-          <span id="file-indicator">Sin archivo</span>
-        </div>
-        <div class="toolbar-center">
-          <h1><span id="modo-fichero" class="modo-proyecto-fichero">📄</span><span class="modo-proyecto-carpeta" id="modo-carpeta">📁</span></h1>
-        </div>
-        <div class="toolbar-right">
-          <span id="autosave-indicator" title="Autoguardado activo"></span>
-          <button id="btn-stats" class="btn-icon" title="Estadísticas">📈</button>
-          <div id="ai-status">
-            <span class="status-dot" id="ai-dot"></span>
-            <span id="ai-text">IA: Verificando...</span>
-          </div>
-        </div>
+
+      <!-- Elementos de estado ocultos — referencias para JS, sin UI visible -->
+      <div id="ghost-state" style="display:none" aria-hidden="true">
+        <span id="file-indicator"></span>
+        <span id="modo-fichero" class="modo-proyecto-fichero"></span>
+        <span id="modo-carpeta" class="modo-proyecto-carpeta"></span>
+        <span id="autosave-indicator"></span>
+        <button id="btn-stats"></button>
+        <span id="ai-dot" class="status-dot"></span>
+        <span id="ai-text"></span>
       </div>
 
       <!-- Editor -->

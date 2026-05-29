@@ -71,67 +71,6 @@
   flex-direction: column;
 }
 
-/* TOOLBAR — dentro de la columna del editor, glass */
-#toolbar {
-  height: 48px;
-  flex-shrink: 0;
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--glass-border);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 12px;
-  -webkit-app-region: drag;
-}
-
-#toolbar h1 {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-#toolbar button,
-#toolbar input,
-#toolbar select {
-  -webkit-app-region: no-drag;
-}
-
-.toolbar-left,
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar-center {
-  flex: 1;
-  text-align: center;
-}
-
-#file-name {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-#ai-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-secondary);
-}
-
-.status-dot.connected { background: var(--success); }
-.status-dot.error     { background: var(--danger); }
-
 /* ── EDITOR CONTAINER — sólido para máxima legibilidad ── */
 #editor-container {
   flex: 1;

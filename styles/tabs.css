@@ -8,6 +8,15 @@
   padding: 0 10px;
   gap: 6px;
   /* sin border-bottom — se funde con el editor */
+  /* arrastrable desde la zona vacía entre tabs */
+  -webkit-app-region: drag;
+}
+
+/* los elementos interactivos no deben activar el arrastre */
+#tab-bar .tab,
+#tab-bar button,
+#tab-bar input {
+  -webkit-app-region: no-drag;
 }
 
 #tabs-container {
