@@ -1,20 +1,81 @@
 /* === LAYOUT PRINCIPAL === */
 
+/* main-container cubre toda la ventana — toolbar ya está dentro */
 #main-container {
   display: flex;
-  height: calc(100vh - 48px); /* toolbar ahora mide 48px */
+  height: 100vh;
 }
 
-/* TOOLBAR — glass */
+/* ── SIDEBAR — full height, glass, incluye traffic lights ── */
+#sidebar {
+  width: 250px;
+  min-width: 250px;
+  height: 100%;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Zona reservada para los traffic lights nativos — arrastrable */
+.sidebar-traffic-zone {
+  height: 52px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+/* Iconos flotantes centrados, sin separador */
+.sidebar-header {
+  padding: 0 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-header h3 {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#sidebar-resizer {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+#sidebar-resizer:hover,
+#sidebar-resizer.resizing {
+  background: rgba(91, 156, 246, 0.5);
+}
+
+/* ── COLUMNA DEL EDITOR ── */
+#editor-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* TOOLBAR — dentro de la columna del editor, glass */
 #toolbar {
   height: 48px;
+  flex-shrink: 0;
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border-bottom: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 16px;
   gap: 12px;
   -webkit-app-region: drag;
 }
@@ -25,18 +86,13 @@
   color: var(--text-secondary);
 }
 
-#toolbar button {
+#toolbar button,
+#toolbar input,
+#toolbar select {
   -webkit-app-region: no-drag;
 }
 
-/* Espacio para los traffic lights (80px cubre la zona de los tres botones) */
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 80px;
-}
-
+.toolbar-left,
 .toolbar-right {
   display: flex;
   align-items: center;
@@ -67,56 +123,10 @@
   background: var(--text-secondary);
 }
 
-.status-dot.connected {
-  background: var(--success);
-}
+.status-dot.connected { background: var(--success); }
+.status-dot.error     { background: var(--danger); }
 
-.status-dot.error {
-  background: var(--danger);
-}
-
-/* SIDEBAR — glass tintado */
-#sidebar {
-  width: 250px;
-  min-width: 250px;
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border-right: 1px solid var(--glass-border);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-}
-
-#sidebar-resizer {
-  width: 5px;
-  flex-shrink: 0;
-  cursor: col-resize;
-  background: rgba(255, 255, 255, 0.04);
-  transition: background 0.15s;
-  z-index: 10;
-}
-
-#sidebar-resizer:hover,
-#sidebar-resizer.resizing {
-  background: rgba(91, 156, 246, 0.5);
-}
-
-.sidebar-header {
-  padding: 12px;
-  border-bottom: 1px solid var(--glass-border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sidebar-header h3 {
-  flex: 1;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-/* EDITOR CONTAINER — sólido para máxima legibilidad */
+/* ── EDITOR CONTAINER — sólido para máxima legibilidad ── */
 #editor-container {
   flex: 1;
   min-width: 0;
@@ -124,6 +134,7 @@
   flex-direction: column;
   position: relative;
   background: var(--bg-primary);
+  overflow: hidden;
 }
 
 /* EMPTY STATE */

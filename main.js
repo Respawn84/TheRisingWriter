@@ -17,7 +17,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     },
     titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 17 }, // centrados en toolbar de 48px
+    trafficLightPosition: { x: 16, y: 18 }, // centrados en sidebar-traffic-zone de 52px
     backgroundColor: isMac ? '#00000000' : '#1e1e1e',
     transparent: isMac,
     ...(isMac && {
