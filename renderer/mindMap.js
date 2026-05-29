@@ -46,23 +46,20 @@ async function buildMindMapData() {
   const capEntries = await window.electronAPI.readDirectory(capitulosRuta);
   const chapters = capEntries.filter(e => e.isDirectory).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Normaliza un nombre para comparación: minúsculas, sin acentos, guiones/guionbajos→espacio
-  function normalizeName(s) {
-    return s.toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/[-_]+/g, ' ')
-      .trim();
+  // Mismo algoritmo que openPersonajeInSplit en metadata.js:
+  // quitar extensión y luego prefijo numérico (ej. "02-Eve_Lynn.txt" → "Eve_Lynn")
+  function charKey(filename) {
+    return filename.replace(/\.[^.]+$/, '').replace(/^\d+-/, '');
   }
 
-  // Índice nombre normalizado→path de ficheros de personajes
+  // Índice cleanName→path, igual que metadata.js
   let charFileIndex = {};
   if (personajesRuta) {
     try {
       const charEntries = await window.electronAPI.readDirectory(personajesRuta);
       charEntries.forEach(e => {
         if (!e.isDirectory) {
-          const base = e.name.replace(/\.[^.]+$/, '');
-          charFileIndex[normalizeName(base)] = e.path;
+          charFileIndex[charKey(e.name)] = e.path;
         }
       });
     } catch { /* directorio vacío o no configurado */ }
@@ -101,7 +98,7 @@ async function buildMindMapData() {
           sceneNode.children.push({
             label: nombre,
             type: 'character',
-            path: charFileIndex[normalizeName(nombre)] || null,
+            path: charFileIndex[nombre] || null,
             isDirectory: false,
             children: []
           });
