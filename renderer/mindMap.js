@@ -243,19 +243,14 @@ function renderMindMapSVG(chapters) {
 // ====================================
 
 function showEditorView() {
-  document.getElementById('tab-bar').classList.remove('hidden');
-  document.getElementById('editors-wrapper').classList.remove('hidden');
-  document.getElementById('format-bar').classList.remove('hidden');
+  document.getElementById('mindmap-resizer').classList.add('hidden');
   document.getElementById('mindmap-panel').classList.add('hidden');
   mmActive = false;
-  // Restaurar estado del botón
   document.getElementById('btn-mindmap')?.classList.remove('active');
 }
 
 function showMindMapView() {
-  document.getElementById('tab-bar').classList.add('hidden');
-  document.getElementById('editors-wrapper').classList.add('hidden');
-  document.getElementById('format-bar').classList.add('hidden');
+  document.getElementById('mindmap-resizer').classList.remove('hidden');
   document.getElementById('mindmap-panel').classList.remove('hidden');
   mmActive = true;
   document.getElementById('btn-mindmap')?.classList.add('active');
@@ -407,8 +402,47 @@ function onMindMapMouseUp() {
 function setupMindMapListeners() {
   document.getElementById('btn-mindmap')?.addEventListener('click', openMindMap);
 
-  // Volver al editor con Escape
+  // Cerrar con Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && mmActive) showEditorView();
+  });
+
+  // Resizer vertical — igual que sidebar-resizer pero en eje Y
+  const resizer = document.getElementById('mindmap-resizer');
+  const panel   = document.getElementById('mindmap-panel');
+  const MIN_H   = 120;
+  const MAX_H   = () => window.innerHeight - 160; // deja espacio mínimo al editor
+
+  // Restaurar altura guardada
+  const savedH = parseInt(localStorage.getItem('mindmapHeight'));
+  if (savedH && savedH >= MIN_H) panel.style.height = savedH + 'px';
+
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const startY  = e.clientY;
+    const startH  = panel.offsetHeight;
+
+    resizer.classList.add('resizing');
+    document.body.style.cursor     = 'row-resize';
+    document.body.style.userSelect = 'none';
+
+    function onMouseMove(e) {
+      // Arrastrar hacia arriba (deltaY negativo) → panel más alto
+      const delta  = startY - e.clientY;
+      const newH   = Math.min(MAX_H(), Math.max(MIN_H, startH + delta));
+      panel.style.height = newH + 'px';
+    }
+
+    function onMouseUp() {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup',   onMouseUp);
+      resizer.classList.remove('resizing');
+      document.body.style.cursor     = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('mindmapHeight', panel.offsetHeight);
+    }
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup',   onMouseUp);
   });
 }
