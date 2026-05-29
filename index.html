@@ -69,6 +69,19 @@
 
 
 
+      <!-- Mind Map Panel -->
+      <div id="mindmap-panel" class="hidden">
+        <div id="mindmap-toolbar">
+          <div id="mindmap-legend">
+            <span class="mm-legend-item mm-legend-chapter">Capítulos</span>
+            <span class="mm-legend-item mm-legend-scene">Escenas</span>
+            <span class="mm-legend-item mm-legend-character">Personajes</span>
+          </div>
+          <div id="mindmap-hint">Rueda: zoom · Arrastrar: mover · Clic: abrir en split</div>
+        </div>
+        <div id="mindmap-container"></div>
+      </div>
+
       <!-- Format bar -->
       <div id="format-bar">
         <button id="btn-save" class="btn-primary">💾 Guardar</button>
@@ -543,19 +556,6 @@
     </div>
   </div>
 
-  <!-- Mind Map Overlay -->
-  <div id="mindmap-overlay" class="hidden">
-    <div id="mindmap-header">
-      <div id="mindmap-legend">
-        <span class="mm-legend-item mm-legend-chapter">Capítulos</span>
-        <span class="mm-legend-item mm-legend-scene">Escenas</span>
-        <span class="mm-legend-item mm-legend-character">Personajes</span>
-      </div>
-      <div id="mindmap-hint">Rueda para zoom · Arrastrar para mover · Clic para abrir</div>
-      <button id="btn-close-mindmap" class="btn-icon" title="Cerrar mapa">✕</button>
-    </div>
-    <div id="mindmap-container"></div>
-  </div>
 
   <!-- Cargar módulos en orden de dependencias -->
 <script src="node_modules/marked/lib/marked.umd.js"></script>

@@ -455,6 +455,9 @@ async function closeProject() {
   // Limpiar sesión persistida
   await window.electronAPI.clearLastProject();
 
+  // Si el mapa mental estaba activo, volver a la vista del editor
+  if (typeof mmActive !== 'undefined' && mmActive) showEditorView();
+
   // Resetear UI
   document.getElementById('file-tree').innerHTML = `
     <div class="empty-state">

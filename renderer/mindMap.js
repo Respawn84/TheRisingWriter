@@ -1,6 +1,7 @@
 // ====================================
 // MIND MAP
-// Vista de mapa mental: capítulos → escenas → personajes
+// Vista de mapa mental encastrada en el área del editor
+// Capítulos → Escenas → Personajes
 // SVG puro con pan y zoom
 // ====================================
 
@@ -8,12 +9,12 @@
 const MM = {
   NODE_W: 170,
   NODE_H: 38,
-  GAP_Y: 12,        // espacio vertical entre nodos hermanos
-  GAP_CHAPTER: 36,  // espacio extra entre capítulos
-  GAP_SCENE: 18,    // espacio extra entre escenas
-  COL_GAP: 210,     // distancia horizontal entre columnas
-  COL_START: 60,    // x inicial de la primera columna
-  CURVE: 60,        // curvatura de las líneas bézier
+  GAP_Y: 12,
+  GAP_CHAPTER: 36,
+  GAP_SCENE: 18,
+  COL_GAP: 210,
+  COL_START: 60,
+  CURVE: 60,
   COLORS: {
     chapter:   { fill: '#1e3a5f', stroke: '#4a9eff', text: '#93c5fd' },
     scene:     { fill: '#1e293b', stroke: '#64748b', text: '#cbd5e1' },
@@ -22,12 +23,13 @@ const MM = {
   }
 };
 
-// --- Estado del mapa ---
-let mmTranslate = { x: 60, y: 60 };
+// --- Estado de transformación del mapa ---
+let mmTranslate = { x: 80, y: 60 };
 let mmScale = 1;
 let mmDragging = false;
 let mmDragStart = { x: 0, y: 0 };
 let mmDragOrigin = { x: 0, y: 0 };
+let mmActive = false;
 
 // ====================================
 // CARGA DE DATOS
@@ -41,22 +43,21 @@ async function buildMindMapData() {
 
   const personajesRuta = state.projectData.configuracion?.directorios?.personajes?.ruta;
 
-  // Leer capítulos (subcarpetas del directorio de capítulos)
   const capEntries = await window.electronAPI.readDirectory(capitulosRuta);
   const chapters = capEntries.filter(e => e.isDirectory).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Índice de ficheros de personajes para encontrar paths al hacer clic
+  // Índice nombre→path de ficheros de personajes
   let charFileIndex = {};
   if (personajesRuta) {
     try {
       const charEntries = await window.electronAPI.readDirectory(personajesRuta);
       charEntries.forEach(e => {
         if (!e.isDirectory) {
-          const baseName = e.name.replace(/\.[^.]+$/, '');
-          charFileIndex[baseName.toLowerCase()] = e.path;
+          const base = e.name.replace(/\.[^.]+$/, '');
+          charFileIndex[base.toLowerCase()] = e.path;
         }
       });
-    } catch { /* directorio de personajes vacío o no configurado */ }
+    } catch { /* directorio vacío o no configurado */ }
   }
 
   const nodes = [];
@@ -70,7 +71,6 @@ async function buildMindMapData() {
       children: []
     };
 
-    // Leer escenas (ficheros .txt dentro del capítulo)
     try {
       const sceneEntries = await window.electronAPI.readDirectory(chapter.path);
       const scenes = sceneEntries
@@ -86,16 +86,14 @@ async function buildMindMapData() {
           children: []
         };
 
-        // Leer personajes de los metadatos
         const meta = state.projectData.metadatos?.[scene.path];
         const personajes = meta?.personajes || [];
 
         for (const nombre of personajes) {
-          const charPath = charFileIndex[nombre.toLowerCase()] || null;
           sceneNode.children.push({
             label: nombre,
             type: 'character',
-            path: charPath,
+            path: charFileIndex[nombre.toLowerCase()] || null,
             isDirectory: false,
             children: []
           });
@@ -113,7 +111,6 @@ async function buildMindMapData() {
 
 // ====================================
 // LAYOUT — árbol horizontal L→R
-// Devuelve la altura total usada
 // ====================================
 
 function computeLayout(chapters) {
@@ -123,7 +120,7 @@ function computeLayout(chapters) {
     MM.COL_START + (MM.NODE_W + MM.COL_GAP) * 2
   ];
 
-  let cursor = 0; // posición Y actual
+  let cursor = 0;
 
   for (const chapter of chapters) {
     const chapterTop = cursor;
@@ -146,7 +143,6 @@ function computeLayout(chapters) {
             char.y = cursor;
             cursor += MM.NODE_H + MM.GAP_Y;
           }
-          // Centrar escena sobre sus personajes
           const sceneBottom = cursor - MM.GAP_Y;
           scene.x = colX[1];
           scene.y = sceneTop + (sceneBottom - sceneTop) / 2 - MM.NODE_H / 2;
@@ -155,7 +151,6 @@ function computeLayout(chapters) {
         cursor += MM.GAP_SCENE;
       }
 
-      // Centrar capítulo sobre sus escenas
       const chapterBottom = cursor - MM.GAP_SCENE;
       chapter.x = colX[0];
       chapter.y = chapterTop + (chapterBottom - chapterTop) / 2 - MM.NODE_H / 2;
@@ -173,18 +168,18 @@ function computeLayout(chapters) {
 
 function svgNode(node) {
   const c = MM.COLORS[node.type];
-  const nodeId = 'mm-node-' + btoa(encodeURIComponent(node.label + node.type)).replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
   const clickable = node.path ? 'style="cursor:pointer"' : '';
-  const pathAttr = node.path ? `data-path="${node.path.replace(/"/g, '&quot;')}" data-is-dir="${node.isDirectory}"` : '';
+  const pathAttr = node.path
+    ? `data-path="${node.path.replace(/"/g, '&quot;')}" data-is-dir="${node.isDirectory}"`
+    : '';
 
   return `
-    <g class="mm-node" ${clickable} ${pathAttr} data-type="${node.type}" id="${nodeId}">
+    <g class="mm-node" ${clickable} ${pathAttr} data-type="${node.type}">
       <rect x="${node.x}" y="${node.y}"
             width="${MM.NODE_W}" height="${MM.NODE_H}" rx="8"
             fill="${c.fill}" stroke="${c.stroke}" stroke-width="1.5"/>
       <text x="${node.x + MM.NODE_W / 2}" y="${node.y + MM.NODE_H / 2 + 5}"
-            text-anchor="middle"
-            fill="${c.text}"
+            text-anchor="middle" fill="${c.text}"
             font-size="12"
             font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
         ${svgTruncate(node.label, 22)}
@@ -197,27 +192,22 @@ function svgEdge(parent, child) {
   const y1 = parent.y + MM.NODE_H / 2;
   const x2 = child.x;
   const y2 = child.y + MM.NODE_H / 2;
-  const cx = x1 + MM.CURVE;
+  const cx1 = x1 + MM.CURVE;
   const cx2 = x2 - MM.CURVE;
-
-  return `<path d="M${x1},${y1} C${cx},${y1} ${cx2},${y2} ${x2},${y2}"
+  return `<path d="M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}"
                fill="none" stroke="${MM.COLORS.edge}" stroke-width="1.5" opacity="0.6"/>`;
 }
 
-function svgTruncate(text, maxChars) {
-  if (text.length <= maxChars) return escapeXml(text);
-  return escapeXml(text.slice(0, maxChars - 1)) + '…';
+function svgTruncate(text, max) {
+  if (text.length <= max) return escapeXml(text);
+  return escapeXml(text.slice(0, max - 1)) + '…';
 }
 
 function escapeXml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function renderMindMapSVG(chapters, totalHeight) {
-  const totalWidth = MM.COL_START + (MM.NODE_W + MM.COL_GAP) * 3 + 60;
-  const svgH = Math.max(totalHeight + 120, 600);
-  const svgW = Math.max(totalWidth, 800);
-
+function renderMindMapSVG(chapters) {
   let edges = '';
   let nodes = '';
 
@@ -233,11 +223,34 @@ function renderMindMapSVG(chapters, totalHeight) {
     }
   }
 
-  return { svgW, svgH, edges, nodes };
+  return { edges, nodes };
 }
 
 // ====================================
-// APERTURA Y CIERRE
+// MOSTRAR / OCULTAR
+// ====================================
+
+function showEditorView() {
+  document.getElementById('tab-bar').classList.remove('hidden');
+  document.getElementById('editors-wrapper').classList.remove('hidden');
+  document.getElementById('format-bar').classList.remove('hidden');
+  document.getElementById('mindmap-panel').classList.add('hidden');
+  mmActive = false;
+  // Restaurar estado del botón
+  document.getElementById('btn-mindmap')?.classList.remove('active');
+}
+
+function showMindMapView() {
+  document.getElementById('tab-bar').classList.add('hidden');
+  document.getElementById('editors-wrapper').classList.add('hidden');
+  document.getElementById('format-bar').classList.add('hidden');
+  document.getElementById('mindmap-panel').classList.remove('hidden');
+  mmActive = true;
+  document.getElementById('btn-mindmap')?.classList.add('active');
+}
+
+// ====================================
+// ABRIR MAPA
 // ====================================
 
 async function openMindMap() {
@@ -246,15 +259,20 @@ async function openMindMap() {
     return;
   }
 
-  const overlay = document.getElementById('mindmap-overlay');
-  overlay.classList.remove('hidden');
+  // Toggle: si ya está activo, volver al editor
+  if (mmActive) {
+    showEditorView();
+    return;
+  }
 
-  // Mostrar spinner mientras carga
+  showMindMapView();
+
+  // Spinner mientras carga
   const container = document.getElementById('mindmap-container');
   container.innerHTML = `<div class="mindmap-loading"><div class="spinner"></div><p>Construyendo mapa…</p></div>`;
 
   // Reset transform
-  mmTranslate = { x: 80, y: 80 };
+  mmTranslate = { x: 80, y: 60 };
   mmScale = 1;
 
   const chapters = await buildMindMapData();
@@ -265,23 +283,19 @@ async function openMindMap() {
   }
 
   const totalHeight = computeLayout(chapters);
-  const { svgW, svgH, edges, nodes } = renderMindMapSVG(chapters, totalHeight);
+  const { edges, nodes } = renderMindMapSVG(chapters);
 
   container.innerHTML = `
     <svg id="mindmap-svg" width="100%" height="100%"
          xmlns="http://www.w3.org/2000/svg">
       <rect width="100%" height="100%" fill="#0f172a"/>
       <g id="mindmap-scene" transform="translate(${mmTranslate.x},${mmTranslate.y}) scale(${mmScale})">
-        <g id="mm-edges">${edges}</g>
-        <g id="mm-nodes">${nodes}</g>
+        <g>${edges}</g>
+        <g>${nodes}</g>
       </g>
     </svg>`;
 
   setupMindMapInteraction();
-}
-
-function closeMindMap() {
-  document.getElementById('mindmap-overlay').classList.add('hidden');
 }
 
 // ====================================
@@ -299,13 +313,11 @@ function setupMindMapInteraction() {
   const svg = document.getElementById('mindmap-svg');
   if (!svg) return;
 
-  // Zoom con rueda
+  // Zoom con rueda centrado en cursor
   svg.addEventListener('wheel', (e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.min(3, Math.max(0.2, mmScale * delta));
-
-    // Zoom centrado en el cursor
+    const newScale = Math.min(3, Math.max(0.15, mmScale * delta));
     const rect = svg.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
@@ -317,27 +329,15 @@ function setupMindMapInteraction() {
 
   // Pan con drag del fondo
   svg.addEventListener('mousedown', (e) => {
-    if (e.target.closest('.mm-node')) return; // no arrastrar si es un nodo
+    if (e.target.closest('.mm-node')) return;
     mmDragging = true;
     mmDragStart = { x: e.clientX, y: e.clientY };
     mmDragOrigin = { ...mmTranslate };
     svg.style.cursor = 'grabbing';
   });
 
-  window.addEventListener('mousemove', (e) => {
-    if (!mmDragging) return;
-    mmTranslate.x = mmDragOrigin.x + (e.clientX - mmDragStart.x);
-    mmTranslate.y = mmDragOrigin.y + (e.clientY - mmDragStart.y);
-    applyMindMapTransform();
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (mmDragging) {
-      mmDragging = false;
-      const svg = document.getElementById('mindmap-svg');
-      if (svg) svg.style.cursor = 'grab';
-    }
-  });
+  window.addEventListener('mousemove', onMindMapMouseMove);
+  window.addEventListener('mouseup', onMindMapMouseUp);
 
   svg.style.cursor = 'grab';
 
@@ -349,24 +349,34 @@ function setupMindMapInteraction() {
     const filePath = nodeEl.dataset.path;
     const isDir = nodeEl.dataset.isDir === 'true';
     const type = nodeEl.dataset.type;
-    const label = nodeEl.querySelector('text')?.textContent?.trim();
+    const label = nodeEl.querySelector('text')?.textContent?.trim() || '';
 
     if (!filePath) {
       showNotification(`${label} — sin fichero asociado`);
       return;
     }
 
-    closeMindMap();
-
     if (type === 'chapter') {
-      // Abrir panel de metadatos del capítulo en split
       const item = { name: label, path: filePath, isDirectory: true };
       openChapterMetadataPanel(item);
     } else {
-      // Abrir fichero en split derecho
       await openInSplit({ name: label, path: filePath });
     }
   });
+}
+
+function onMindMapMouseMove(e) {
+  if (!mmDragging) return;
+  mmTranslate.x = mmDragOrigin.x + (e.clientX - mmDragStart.x);
+  mmTranslate.y = mmDragOrigin.y + (e.clientY - mmDragStart.y);
+  applyMindMapTransform();
+}
+
+function onMindMapMouseUp() {
+  if (!mmDragging) return;
+  mmDragging = false;
+  const svg = document.getElementById('mindmap-svg');
+  if (svg) svg.style.cursor = 'grab';
 }
 
 // ====================================
@@ -375,13 +385,9 @@ function setupMindMapInteraction() {
 
 function setupMindMapListeners() {
   document.getElementById('btn-mindmap')?.addEventListener('click', openMindMap);
-  document.getElementById('btn-close-mindmap')?.addEventListener('click', closeMindMap);
 
-  // Cerrar con Escape
+  // Volver al editor con Escape
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      const overlay = document.getElementById('mindmap-overlay');
-      if (overlay && !overlay.classList.contains('hidden')) closeMindMap();
-    }
+    if (e.key === 'Escape' && mmActive) showEditorView();
   });
 }
