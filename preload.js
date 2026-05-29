@@ -48,5 +48,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback),
   onExportEpub: (callback) => ipcRenderer.on('export-epub', callback),
   onNewProject: (callback) => ipcRenderer.on('new-project', callback),
-  createNewProject: (params) => ipcRenderer.invoke('create-new-project', params)
+  createNewProject: (params) => ipcRenderer.invoke('create-new-project', params),
+  onCloseProject: (callback) => ipcRenderer.on('close-project', callback),
+  clearLastProject: () => ipcRenderer.invoke('clear-last-project')
 });

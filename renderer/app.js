@@ -34,6 +34,10 @@ function setupMainEventListeners() {
   window.electronAPI.onExportEpub(() => {
     exportNovelToEpub();
   });
+
+  window.electronAPI.onCloseProject(() => {
+    closeProject();
+  });
 }
 
 // Inicializar todo

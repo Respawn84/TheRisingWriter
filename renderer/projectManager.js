@@ -431,6 +431,58 @@ function showChapterStatsModal(folderPath, stats) {
   openModal('modal-chapter-stats');
 }
 
+// === CERRAR PROYECTO ===
+
+async function closeProject() {
+  // Cerrar todas las pestañas sin guardar
+  state.openTabs = [];
+  state.activeTabIndex = -1;
+  state.currentFile = null;
+  state.currentFileContent = '';
+  state.hasUnsavedChanges = false;
+
+  // Resetear datos del proyecto
+  state.projectPath = null;
+  state.projectJsonPath = null;
+  state.projectData = null;
+  state.projectRootPath = null;
+  state.projectMode = 'folder';
+  state.hasMarkedDirs = false;
+  state.splitActive = false;
+  state.splitFile = null;
+  state.splitMetadataItem = null;
+
+  // Limpiar sesión persistida
+  await window.electronAPI.clearLastProject();
+
+  // Resetear UI
+  document.getElementById('file-tree').innerHTML = `
+    <div class="empty-state">
+      <p>No hay proyecto abierto</p>
+      <button id="btn-open-empty" class="btn-link">Abrir carpeta</button>
+    </div>`;
+
+  // Restaurar el listener del botón vacío
+  document.getElementById('btn-open-empty')?.addEventListener('click', () => {
+    window.electronAPI.openFolderDialog().then(result => {
+      if (result?.success) loadProject(result.path);
+    });
+  });
+
+  document.getElementById('tabs-container').innerHTML = '';
+  document.getElementById('editor').value = '';
+  document.getElementById('editor').placeholder = 'Selecciona un archivo para empezar...';
+  document.getElementById('file-indicator').textContent = 'Sin archivo';
+  document.getElementById('modo-fichero').style.visibility = 'hidden';
+  document.getElementById('modo-carpeta').style.visibility = 'hidden';
+
+  // Cerrar split si está abierto
+  const splitPanel = document.getElementById('editor-split');
+  splitPanel?.classList.add('hidden');
+
+  showNotification('Proyecto cerrado');
+}
+
 // === EXPORTS ===
 
 if (typeof module !== 'undefined' && module.exports) {
