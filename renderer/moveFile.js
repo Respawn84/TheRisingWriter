@@ -70,7 +70,7 @@ async function confirmMove() {
 
 // Configurar listeners de mover
 function setupMoveFileListeners() {
-  document.getElementById('btn-confirm-move').addEventListener('click', confirmMove);
+  document.getElementById('btn-confirm-move')?.addEventListener('click', confirmMove);
 }
 
 if (typeof module !== 'undefined' && module.exports) {
