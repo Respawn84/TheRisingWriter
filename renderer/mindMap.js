@@ -361,10 +361,8 @@ function setupMindMapInteraction() {
       const item = { name: label, path: filePath, isDirectory: true };
       openChapterMetadataPanel(item);
     } else if (type === 'scene') {
-      // Escena → abrir en el editor principal y volver a la vista del editor
-      showEditorView();
-      const fileName = filePath.split('/').pop();
-      openTab({ name: fileName, path: filePath });
+      // Escena → abrir en split derecho (el mapa permanece visible)
+      await openInSplit({ name: label, path: filePath });
     } else if (type === 'character') {
       // Personaje → abrir en split derecho (el mapa sigue visible)
       await openInSplit({ name: label, path: filePath });
