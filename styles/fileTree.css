@@ -26,12 +26,16 @@
   color: white; 
 }
 
-.folder-item.expanded > .folder-icon::before { 
-  content: '📂'; 
+.folder-item.expanded > .folder-icon::before {
+  content: '📂';
 }
 
-.folder-item.collapsed > .folder-icon::before { 
-  content: '📁'; 
+.folder-item.collapsed > .folder-icon::before {
+  content: '📁';
+}
+
+.folder-item.has-type > .folder-icon::before {
+  content: '';
 }
 
 .folder-children {

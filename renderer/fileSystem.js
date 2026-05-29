@@ -203,12 +203,11 @@ function createFolderElement(folder, level) {
   const tipo = getDirectoryTypeFromPath(folder.path);
   let badgeHTML = '';
 
-  // Si está marcado, agregar badge
+  // Si está marcado, agregar badge y suprimir icono genérico de carpeta
   if (tipo) {
     const badge = getTypeBadge(tipo);
     badgeHTML = `<span class="dir-badge" style="color: ${badge.color}" title="${tipo}">${badge.icon}</span>`;
-  }else {
-    badgeHTML = '';
+    el.classList.add('has-type');
   }
 
   el.innerHTML = `<span class="folder-icon">${badgeHTML}</span><span>${folder.name}</span>`;
