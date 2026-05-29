@@ -29,6 +29,7 @@
     <div id="sidebar">
       <div class="sidebar-header">
         <button id="btn-project-metadata" class="btn-icon" title="Metadatos del proyecto">📋</button>
+        <button id="btn-mindmap" class="btn-icon" title="Mapa mental">🗺️</button>
       </div>
       <div id="file-tree">
         <div class="empty-state">
@@ -542,6 +543,20 @@
     </div>
   </div>
 
+  <!-- Mind Map Overlay -->
+  <div id="mindmap-overlay" class="hidden">
+    <div id="mindmap-header">
+      <div id="mindmap-legend">
+        <span class="mm-legend-item mm-legend-chapter">Capítulos</span>
+        <span class="mm-legend-item mm-legend-scene">Escenas</span>
+        <span class="mm-legend-item mm-legend-character">Personajes</span>
+      </div>
+      <div id="mindmap-hint">Rueda para zoom · Arrastrar para mover · Clic para abrir</div>
+      <button id="btn-close-mindmap" class="btn-icon" title="Cerrar mapa">✕</button>
+    </div>
+    <div id="mindmap-container"></div>
+  </div>
+
   <!-- Cargar módulos en orden de dependencias -->
 <script src="node_modules/marked/lib/marked.umd.js"></script>
 <script src="renderer/state.js"></script>
@@ -560,6 +575,7 @@
   <script src="renderer/exportEpub.js"></script>
   <script src="renderer/aiPanel.js"></script>
   <script src="renderer/newProject.js"></script>
+  <script src="renderer/mindMap.js"></script>
   <script src="renderer/app.js"></script>
 </body>
 </html>

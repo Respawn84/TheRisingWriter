@@ -55,6 +55,7 @@ function setupAllListeners() {
   setupFindReplaceListeners();
   setupAIPanelListeners();
   setupNewProjectListeners();
+  setupMindMapListeners();
 }
 
 // Cargar al iniciar
