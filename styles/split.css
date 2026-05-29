@@ -3,26 +3,55 @@
 #editors-wrapper {
   flex: 1;
   display: flex;
-  gap: 1px;
-  background: var(--border);
   overflow: hidden;
+  /* Sin gap ni background — el borde lo pone #editor-split */
 }
 
 .editor-panel {
-  flex: 1;
+  flex: 1;             /* editor-main ocupa el espacio restante */
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
-  transition: flex 0.3s ease;
-  min-width: 0; /* Evita que el contenido expanda el panel más allá de su flex allocation */
+  min-width: 0;
 }
 
+/* Cuando split activo, editor-main sigue siendo flex:1 (toma lo que queda) */
 .editor-panel.split-active {
-  flex: 0.6; /* Editor principal 60% */
+  flex: 1;
 }
 
+/* ── RESIZER DEL PANEL DERECHO ── */
+#split-resizer {
+  width: 8px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+#split-resizer:hover,
+#split-resizer.resizing {
+  background: rgba(91, 156, 246, 0.20);
+}
+
+#split-resizer.hidden {
+  display: none;
+}
+
+/* ── PANEL DERECHO (split) — ancho fijo, arrastrable ── */
 #editor-split {
-  flex: 0.4; /* Split 40% */
+  flex: none;                                    /* ancho fijo — no crece por flex */
+  width: 420px;                                  /* valor por defecto, sobreescrito por JS */
+  min-width: 400px;                              /* igual que el modal buscar/reemplazar */
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  /* Solo borde izquierdo + superior, unidos por la esquina superior izquierda */
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+  border-top:  1px solid rgba(255, 255, 255, 0.10);
+  border-top-left-radius: 12px;
+  overflow: hidden;                              /* recorta el contenido a la curva */
 }
 
 #editor-split.hidden {
@@ -65,13 +94,13 @@
 
 #editor-reference {
   flex: 1;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--editor-bg);
+  color: var(--editor-color);
   border: none;
   padding: 20px;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 16px;
-  line-height: 1.8;
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -105,10 +134,10 @@
   padding: 8px 14px;
   background: var(--bg-secondary);
   cursor: pointer;
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: var(--editor-font-family);
   font-size: 15px;
   font-weight: bold;
-  color: var(--text);
+  color: var(--editor-color);
   list-style: none;
   user-select: none;
 }
@@ -139,11 +168,11 @@
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 15px;
-  line-height: 1.8;
-  background: var(--bg);
-  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  background: var(--editor-bg);
+  color: var(--editor-color);
   max-width: 100%;
   overflow: hidden;
 }
@@ -153,10 +182,10 @@
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 15px;
-  line-height: 1.8;
-  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  color: var(--editor-color);
   max-width: 100%;
   overflow: hidden;
 }
@@ -168,10 +197,10 @@
 
 /* Markdown renderizado dentro del split */
 .split-md {
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 15px;
-  line-height: 1.8;
-  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  color: var(--editor-color);
 }
 
 .split-md p {
@@ -199,10 +228,10 @@
 .split-md h1,
 .split-md h2,
 .split-md h3 {
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: var(--editor-font-family);
   font-weight: bold;
   margin: 1em 0 0.4em 0;
-  color: var(--text);
+  color: var(--editor-color);
 }
 
 .split-md h1 { font-size: 18px; }

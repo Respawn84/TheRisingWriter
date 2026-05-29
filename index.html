@@ -58,6 +58,7 @@
 
       <textarea id="editor" placeholder="Selecciona un archivo para empezar..."></textarea>
         </div>
+        <div id="split-resizer" class="hidden"></div>
         <div id="editor-split" class="editor-panel hidden">
           <div class="split-header">
             <span id="split-file-name">📄 Referencia</span>
@@ -581,48 +582,141 @@
       </div>
       <div class="modal-body">
 
-        <!-- Sección: Autoguardado -->
-        <div class="settings-section">
-          <h4 class="settings-section-title">💾 Autoguardado</h4>
-          <div class="settings-row">
-            <label for="input-autosave-minutes">Guardar automáticamente cada</label>
-            <div class="settings-row-control">
-              <input type="number" id="input-autosave-minutes" class="input" min="0" max="60" step="1" value="0">
-              <span class="settings-unit">minutos &nbsp;(0 = desactivado)</span>
-            </div>
-          </div>
+        <!-- TABS de navegación -->
+        <div class="settings-tabs">
+          <button class="settings-tab-btn active" data-tab="general">⚙️ General</button>
+          <button class="settings-tab-btn" data-tab="editor">✏️ Panel de escritura</button>
         </div>
 
-        <!-- Sección: Apariencia — próximamente -->
-        <div class="settings-section settings-section-disabled">
-          <h4 class="settings-section-title">🎨 Apariencia <span class="badge-soon">Próximamente</span></h4>
-          <div class="settings-row">
-            <label>Color de fondo del editor</label>
-            <div class="settings-row-control">
-              <input type="color" value="#1e1e2e" disabled>
-            </div>
-          </div>
-          <div class="settings-row">
-            <label>Color de texto</label>
-            <div class="settings-row-control">
-              <input type="color" value="#e2e8f0" disabled>
-            </div>
-          </div>
-        </div>
+        <!-- TAB: General -->
+        <div class="settings-tab-panel active" id="settings-panel-general">
 
-        <!-- Sección: Idioma — próximamente -->
-        <div class="settings-section settings-section-disabled">
-          <h4 class="settings-section-title">🌍 Idioma <span class="badge-soon">Próximamente</span></h4>
-          <div class="settings-row">
-            <label>Idioma de la interfaz</label>
-            <div class="settings-row-control">
-              <select disabled>
-                <option>Español</option>
-                <option>English</option>
-              </select>
+          <!-- Sección: Autoguardado -->
+          <div class="settings-section">
+            <h4 class="settings-section-title">💾 Autoguardado</h4>
+            <div class="settings-row">
+              <label for="input-autosave-minutes">Guardar automáticamente cada</label>
+              <div class="settings-row-control">
+                <input type="number" id="input-autosave-minutes" class="input" min="0" max="60" step="1" value="0">
+                <span class="settings-unit">minutos &nbsp;(0 = desactivado)</span>
+              </div>
             </div>
           </div>
-        </div>
+
+          <!-- Sección: Idioma — próximamente -->
+          <div class="settings-section settings-section-disabled">
+            <h4 class="settings-section-title">🌍 Idioma <span class="badge-soon">Próximamente</span></h4>
+            <div class="settings-row">
+              <label>Idioma de la interfaz</label>
+              <div class="settings-row-control">
+                <select disabled>
+                  <option>Español</option>
+                  <option>English</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /TAB General -->
+
+        <!-- TAB: Panel de escritura -->
+        <div class="settings-tab-panel" id="settings-panel-editor">
+
+          <!-- Colores -->
+          <div class="settings-section">
+            <h4 class="settings-section-title">🎨 Colores</h4>
+
+            <div class="settings-row">
+              <label>Fondo del editor</label>
+              <div class="settings-row-control">
+                <button class="color-swatch-btn" title="Cambiar color de fondo">
+                  <div class="color-swatch-preview" id="swatch-preview-editor-bg"></div>
+                  <input type="color" id="input-editor-bg" value="#1a1a24">
+                </button>
+                <span class="settings-color-value" id="label-editor-bg">#1a1a24</span>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <label>Color del texto</label>
+              <div class="settings-row-control">
+                <button class="color-swatch-btn" title="Cambiar color del texto">
+                  <div class="color-swatch-preview" id="swatch-preview-editor-color"></div>
+                  <input type="color" id="input-editor-color" value="#d4d4e8">
+                </button>
+                <span class="settings-color-value" id="label-editor-color">#d4d4e8</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tipografía -->
+          <div class="settings-section">
+            <h4 class="settings-section-title">🔤 Tipografía</h4>
+
+            <div class="settings-row">
+              <label>Fuente</label>
+              <div class="settings-row-control">
+                <select id="select-editor-font">
+                  <option value="'Georgia', 'Times New Roman', serif">Georgia (predeterminada)</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  <option value="'Palatino Linotype', 'Palatino', serif">Palatino</option>
+                  <option value="'Garamond', 'Adobe Garamond Pro', serif">Garamond</option>
+                  <option value="'Helvetica Neue', 'Helvetica', Arial, sans-serif">Helvetica Neue</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="-apple-system, 'SF Pro Text', sans-serif">Sistema (macOS)</option>
+                  <option value="'Courier New', Courier, monospace">Courier New</option>
+                  <option value="'Menlo', 'Monaco', monospace">Menlo / Monaco</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <label>Tamaño de fuente</label>
+              <div class="settings-row-control">
+                <input type="number" id="input-editor-font-size" class="input" min="12" max="30" step="1" value="16">
+                <span class="settings-unit">px</span>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <label>Interlineado</label>
+              <div class="settings-row-control">
+                <select id="select-editor-line-height">
+                  <option value="1.2">Compacto (1.2)</option>
+                  <option value="1.4">Ajustado (1.4)</option>
+                  <option value="1.6">Cómodo (1.6)</option>
+                  <option value="1.8" selected>Normal (1.8)</option>
+                  <option value="2.0">Amplio (2.0)</option>
+                  <option value="2.5">Extra (2.5)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="settings-row">
+              <label>Márgenes internos</label>
+              <div class="settings-row-control">
+                <select id="select-editor-padding">
+                  <option value="12px">Mínimo (12 px)</option>
+                  <option value="24px" selected>Normal (24 px)</option>
+                  <option value="40px">Generoso (40 px)</option>
+                  <option value="60px">Extra (60 px)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vista previa -->
+          <div class="settings-section">
+            <h4 class="settings-section-title">👁 Vista previa</h4>
+            <div id="editor-preview">Era el principio de todo. La tinta aún fresca sobre el papel imaginario, las palabras buscando su lugar exacto en la historia.</div>
+          </div>
+
+          <!-- Reset -->
+          <div class="settings-reset-row">
+            <button id="btn-reset-editor-appearance" class="btn-reset">↺ Restablecer predeterminados</button>
+          </div>
+
+        </div><!-- /TAB Panel de escritura -->
 
       </div>
       <div class="modal-footer">
