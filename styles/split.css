@@ -41,13 +41,17 @@
 
 /* ── PANEL DERECHO (split) — ancho fijo, arrastrable ── */
 #editor-split {
-  flex: none;                            /* ancho fijo — no crece por flex */
-  width: 420px;                          /* valor por defecto, sobreescrito por JS */
-  min-width: 400px;                      /* igual que el modal buscar/reemplazar */
+  flex: none;                                    /* ancho fijo — no crece por flex */
+  width: 420px;                                  /* valor por defecto, sobreescrito por JS */
+  min-width: 400px;                              /* igual que el modal buscar/reemplazar */
   display: flex;
   flex-direction: column;
   background: var(--bg-primary);
-  border-left: 1px solid var(--border);  /* borde que actúa de guía visual */
+  /* Solo borde izquierdo + superior, unidos por la esquina superior izquierda */
+  border-left: 1px solid rgba(255, 255, 255, 0.10);
+  border-top:  1px solid rgba(255, 255, 255, 0.10);
+  border-top-left-radius: 12px;
+  overflow: hidden;                              /* recorta el contenido a la curva */
 }
 
 #editor-split.hidden {
