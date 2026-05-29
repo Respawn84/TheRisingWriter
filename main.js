@@ -56,7 +56,12 @@ function createMenu() {
           label: 'Abrir proyecto...',
           accelerator: 'CmdOrCtrl+P',
           click: openProjectFile
-        },        
+        },
+        {
+          label: 'Cerrar proyecto',
+          accelerator: 'CmdOrCtrl+Shift+W',
+          click: () => mainWindow.webContents.send('close-project')
+        },
         { type: 'separator' },
         {
           label: 'Guardar',
@@ -996,6 +1001,14 @@ async function saveLastFile(filePath) {
   props.lastFile = filePath;
   await writeProperties(props);
 }
+
+ipcMain.handle('clear-last-project', async () => {
+  const props = await readProperties();
+  delete props.lastProject;
+  delete props.lastFile;
+  await writeProperties(props);
+  return { success: true };
+});
 
 // === APP LIFECYCLE ===
 
