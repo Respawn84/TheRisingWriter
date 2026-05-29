@@ -224,8 +224,8 @@
 
 #modal-find-replace .modal-content {
   position: absolute;
-  bottom: 44px; /* Encima de la format-bar */
-  right: 0;
+  bottom: 59px; /* 44px format-bar + 15px para alinear con borde del panel */
+  right: 15px;  /* 15px para alinear con el borde interior del panel derecho */
   width: 400px;
   max-width: 400px;
   margin: 0;
