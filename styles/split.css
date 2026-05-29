@@ -65,13 +65,13 @@
 
 #editor-reference {
   flex: 1;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--editor-bg);
+  color: var(--editor-color);
   border: none;
   padding: 20px;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 16px;
-  line-height: 1.8;
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -105,10 +105,10 @@
   padding: 8px 14px;
   background: var(--bg-secondary);
   cursor: pointer;
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: var(--editor-font-family);
   font-size: 15px;
   font-weight: bold;
-  color: var(--text);
+  color: var(--editor-color);
   list-style: none;
   user-select: none;
 }
@@ -139,11 +139,11 @@
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 15px;
-  line-height: 1.8;
-  background: var(--bg);
-  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  background: var(--editor-bg);
+  color: var(--editor-color);
   max-width: 100%;
   overflow: hidden;
 }
@@ -153,10 +153,10 @@
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 15px;
-  line-height: 1.8;
-  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  color: var(--editor-color);
   max-width: 100%;
   overflow: hidden;
 }
@@ -168,10 +168,10 @@
 
 /* Markdown renderizado dentro del split */
 .split-md {
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 15px;
-  line-height: 1.8;
-  color: var(--text);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  color: var(--editor-color);
 }
 
 .split-md p {
@@ -199,10 +199,10 @@
 .split-md h1,
 .split-md h2,
 .split-md h3 {
-  font-family: 'Georgia', 'Times New Roman', serif;
+  font-family: var(--editor-font-family);
   font-weight: bold;
   margin: 1em 0 0.4em 0;
-  color: var(--text);
+  color: var(--editor-color);
 }
 
 .split-md h1 { font-size: 18px; }

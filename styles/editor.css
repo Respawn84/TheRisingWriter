@@ -4,13 +4,13 @@
   flex: 1;
   width: 100%;   /* La textarea debe rellenar el ancho del panel, no usar su tamaño intrínseco */
   min-width: 0;  /* Permite encogerse con el panel cuando el split se abre */
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--editor-bg);
+  color: var(--editor-color);
   border: none;
-  padding: 24px;
-  font-family: 'Georgia', serif;
-  font-size: 16px;
-  line-height: 1.8;
+  padding: var(--editor-padding);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
   resize: none;
   outline: none;
 }

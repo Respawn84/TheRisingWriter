@@ -1099,15 +1099,32 @@ ipcMain.handle('clear-last-project', async () => {
 ipcMain.handle('get-app-settings', async () => {
   const props = await readProperties();
   return {
-    autosaveMinutes: parseInt(props.autosaveMinutes || '0', 10)
+    // General
+    autosaveMinutes:  parseInt(props.autosaveMinutes || '0', 10),
+    // Panel de escritura
+    editorBg:         props.editorBg         || '',
+    editorColor:      props.editorColor      || '',
+    editorFontFamily: props.editorFontFamily || '',
+    editorFontSize:   props.editorFontSize   || '',
+    editorLineHeight: props.editorLineHeight || '',
+    editorPadding:    props.editorPadding    || '',
   };
 });
 
 ipcMain.handle('save-app-settings', async (_, settings) => {
   const props = await readProperties();
+
+  // General
   if (settings.autosaveMinutes !== undefined) {
     props.autosaveMinutes = String(Math.max(0, Math.floor(settings.autosaveMinutes)));
   }
+
+  // Panel de escritura — almacenar las claves si vienen en el objeto
+  const editorKeys = ['editorBg', 'editorColor', 'editorFontFamily', 'editorFontSize', 'editorLineHeight', 'editorPadding'];
+  for (const key of editorKeys) {
+    if (settings[key] !== undefined) props[key] = String(settings[key]);
+  }
+
   await writeProperties(props);
   return { success: true };
 });
