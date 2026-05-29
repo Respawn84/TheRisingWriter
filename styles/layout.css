@@ -1,116 +1,90 @@
 /* === LAYOUT PRINCIPAL === */
 
+/* main-container cubre toda la ventana — toolbar ya está dentro */
 #main-container {
   display: flex;
-  height: calc(100vh - 40px);
+  height: 100vh;
 }
 
-/* TOOLBAR */
-#toolbar {
-  height: 40px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  gap: 12px;
-  -webkit-app-region: drag;
-}
-
-#toolbar h1 {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-
-#toolbar button {
-  -webkit-app-region: no-drag;
-}
-
-.toolbar-left, .toolbar-right { 
-  display: flex; 
-  align-items: center; 
-  gap: 8px;
-  margin-left: 60px; 
-}
-
-.toolbar-center { 
-  flex: 1; 
-  text-align: center; 
-}
-
-#file-name {
-  font-size: 12px; 
-  color: var(--text-secondary); 
-}
-
-#ai-status { 
-  display: flex; 
-  align-items: center; 
-  gap: 6px; 
-  font-size: 11px; 
-}
-
-.status-dot { 
-  width: 8px; 
-  height: 8px; 
-  border-radius: 50%; 
-  background: var(--text-secondary); 
-}
-
-.status-dot.connected { 
-  background: var(--success); 
-}
-
-.status-dot.error { 
-  background: var(--danger); 
-}
-
-/* SIDEBAR */
+/* ── SIDEBAR — panel flotante redondeado, estilo macOS ── */
 #sidebar {
   width: 250px;
   min-width: 250px;
-  background: var(--bg-secondary);
+  height: calc(100vh - 16px); /* 8px arriba + 8px abajo */
+  margin: 8px 0 8px 8px;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.55),
+              0 2px 8px  rgba(0, 0, 0, 0.30);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden; /* recorta hijos a las esquinas redondeadas */
+}
+
+/* Zona reservada para los traffic lights nativos — arrastrable */
+.sidebar-traffic-zone {
+  height: 52px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+/* Iconos flotantes centrados, sin separador */
+.sidebar-header {
+  padding: 0 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.sidebar-header h3 {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 #sidebar-resizer {
-  width: 5px;
+  width: 8px;
   flex-shrink: 0;
   cursor: col-resize;
-  background: var(--border);
+  background: transparent;
   transition: background 0.15s;
   z-index: 10;
 }
 
 #sidebar-resizer:hover,
 #sidebar-resizer.resizing {
-  background: var(--accent, #4a9eff);
+  background: rgba(91, 156, 246, 0.20);
+  border-radius: 4px;
 }
 
-.sidebar-header {
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
+/* ── COLUMNA DEL EDITOR — panel flotante, mismo estilo que sidebar ── */
+#editor-column {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  margin: 8px 8px 8px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.50),
+              0 2px 8px  rgba(0, 0, 0, 0.25);
 }
 
-.sidebar-header h3 { 
-  flex: 1; 
-  font-size: 13px; 
-  font-weight: 500; 
-}
-
-/* EDITOR CONTAINER */
+/* ── EDITOR CONTAINER — sólido para máxima legibilidad ── */
 #editor-container {
   flex: 1;
-  min-width: 0; /* Permite que el contenedor se encoja en la fila flex del main-container */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   position: relative;
+  background: var(--bg-primary);
+  overflow: hidden;
 }
 
 /* EMPTY STATE */

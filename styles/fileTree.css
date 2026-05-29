@@ -17,8 +17,8 @@
   user-select: none;
 }
 
-.file-item:hover, .folder-item:hover { 
-  background: var(--bg-tertiary); 
+.file-item:hover, .folder-item:hover {
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .file-item.active { 

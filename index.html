@@ -9,27 +9,11 @@
   <link rel="stylesheet" href="styles/appSettings.css">
 </head>
 <body>
-  <!-- Toolbar -->
-  <div id="toolbar">
-    <div class="toolbar-left">
-      <span id="file-indicator">Sin archivo</span>
-    </div>
-    <div class="toolbar-center">
-      <h1><span id="modo-fichero" class="modo-proyecto-fichero">📄</span><span class="modo-proyecto-carpeta" id="modo-carpeta">📁</span></h1>
-    </div>
-    <div class="toolbar-right">
-      <span id="autosave-indicator" title="Autoguardado activo"></span>
-      <button id="btn-stats" class="btn-icon" title="Estadísticas">📈</button>
-      <div id="ai-status">
-        <span class="status-dot" id="ai-dot"></span>
-        <span id="ai-text">IA: Verificando...</span>
-      </div>
-    </div>
-  </div>
-
   <div id="main-container">
-    <!-- Sidebar -->
+
+    <!-- Sidebar — full height, incluye zona de traffic lights -->
     <div id="sidebar">
+      <div class="sidebar-traffic-zone"></div>
       <div class="sidebar-header">
         <button id="btn-project-metadata" class="btn-icon" title="Metadatos del proyecto">📋</button>
         <button id="btn-mindmap" class="btn-icon" title="Mapa mental">🗺️</button>
@@ -45,8 +29,22 @@
 
     <div id="sidebar-resizer"></div>
 
-    <!-- Editor -->
-    <div id="editor-container">
+    <!-- Columna del editor: solo contenido, sin toolbar -->
+    <div id="editor-column">
+
+      <!-- Elementos de estado ocultos — referencias para JS, sin UI visible -->
+      <div id="ghost-state" style="display:none" aria-hidden="true">
+        <span id="file-indicator"></span>
+        <span id="modo-fichero" class="modo-proyecto-fichero"></span>
+        <span id="modo-carpeta" class="modo-proyecto-carpeta"></span>
+        <span id="autosave-indicator"></span>
+        <button id="btn-stats"></button>
+        <span id="ai-dot" class="status-dot"></span>
+        <span id="ai-text"></span>
+      </div>
+
+      <!-- Editor -->
+      <div id="editor-container">
 
       <!-- Tab Bar -->
       <div id="tab-bar">
@@ -130,8 +128,9 @@
           <button id="btn-copy" class="btn-secondary">📋 Copiar</button>
         </div>
       </div>
-    </div>
-  </div>
+    </div><!-- /editor-container -->
+    </div><!-- /editor-column -->
+  </div><!-- /main-container -->
 
   <!-- Context Menu -->
   <div id="context-menu" class="hidden">

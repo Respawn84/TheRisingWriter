@@ -6,6 +6,8 @@ require('dotenv').config();
 let mainWindow;
 
 function createWindow() {
+  const isMac = process.platform === 'darwin';
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -15,7 +17,13 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js')
     },
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#1e1e1e'
+    trafficLightPosition: { x: 16, y: 18 }, // centrados en sidebar-traffic-zone de 52px
+    backgroundColor: isMac ? '#00000000' : '#1e1e1e',
+    transparent: isMac,
+    ...(isMac && {
+      vibrancy: 'under-window',
+      visualEffectState: 'active'
+    })
   });
 
   mainWindow.loadFile('index.html');
