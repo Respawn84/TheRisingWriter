@@ -39,6 +39,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Último fichero abierto
   saveLastFile: (filePath) => ipcRenderer.invoke('save-last-file', filePath),
 
+  // Configuración del programa
+  getAppSettings: () => ipcRenderer.invoke('get-app-settings'),
+  saveAppSettings: (settings) => ipcRenderer.invoke('save-app-settings', settings),
+
   // Eventos del main
   onProjectFolderOpened: (callback) => ipcRenderer.on('project-folder-opened', (_, path) => callback(path)),
   onProjectFileOpened: (callback) => ipcRenderer.on('project-file-opened', (_, path) => callback(path)),
@@ -50,5 +54,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onNewProject: (callback) => ipcRenderer.on('new-project', callback),
   createNewProject: (params) => ipcRenderer.invoke('create-new-project', params),
   onCloseProject: (callback) => ipcRenderer.on('close-project', callback),
-  clearLastProject: () => ipcRenderer.invoke('clear-last-project')
+  clearLastProject: () => ipcRenderer.invoke('clear-last-project'),
+  onShowAppSettings: (callback) => ipcRenderer.on('show-app-settings', callback)
 });

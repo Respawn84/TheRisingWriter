@@ -13,6 +13,7 @@ function openModal(modalId) {
   if (modalId === 'modal-move') prepareMoveModal();
   if (modalId === 'modal-find-replace') prepareFindReplaceModal();
   if (modalId === 'modal-project-metadata') openProjectMetadataModal();
+  if (modalId === 'modal-app-settings') prepareAppSettingsModal();
 }
 
 // Cerrar modal
