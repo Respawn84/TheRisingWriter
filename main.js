@@ -81,6 +81,12 @@ function createMenu() {
           click: () => mainWindow.webContents.send('export-epub')
         },
         { type: 'separator' },
+        {
+          label: 'Configuración...',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => mainWindow.webContents.send('show-app-settings')
+        },
+        { type: 'separator' },
         { role: 'quit', label: 'Salir' }
       ]
     },
@@ -1076,6 +1082,24 @@ ipcMain.handle('clear-last-project', async () => {
   const props = await readProperties();
   delete props.lastProject;
   delete props.lastFile;
+  await writeProperties(props);
+  return { success: true };
+});
+
+// === APP SETTINGS ===
+
+ipcMain.handle('get-app-settings', async () => {
+  const props = await readProperties();
+  return {
+    autosaveMinutes: parseInt(props.autosaveMinutes || '0', 10)
+  };
+});
+
+ipcMain.handle('save-app-settings', async (_, settings) => {
+  const props = await readProperties();
+  if (settings.autosaveMinutes !== undefined) {
+    props.autosaveMinutes = String(Math.max(0, Math.floor(settings.autosaveMinutes)));
+  }
   await writeProperties(props);
   return { success: true };
 });

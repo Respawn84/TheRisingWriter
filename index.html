@@ -6,6 +6,7 @@
   <title>The Rising Editor</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/tramaTimeline.css">
+  <link rel="stylesheet" href="styles/appSettings.css">
 </head>
 <body>
   <!-- Toolbar -->
@@ -17,6 +18,7 @@
       <h1><span id="modo-fichero" class="modo-proyecto-fichero">📄</span><span class="modo-proyecto-carpeta" id="modo-carpeta">📁</span></h1>
     </div>
     <div class="toolbar-right">
+      <span id="autosave-indicator" title="Autoguardado activo"></span>
       <button id="btn-stats" class="btn-icon" title="Estadísticas">📈</button>
       <div id="ai-status">
         <span class="status-dot" id="ai-dot"></span>
@@ -570,6 +572,67 @@
   </div>
 
 
+  <!-- Modal: Configuración del programa -->
+  <div id="modal-app-settings" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚙️ Configuración</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Sección: Autoguardado -->
+        <div class="settings-section">
+          <h4 class="settings-section-title">💾 Autoguardado</h4>
+          <div class="settings-row">
+            <label for="input-autosave-minutes">Guardar automáticamente cada</label>
+            <div class="settings-row-control">
+              <input type="number" id="input-autosave-minutes" class="input" min="0" max="60" step="1" value="0">
+              <span class="settings-unit">minutos &nbsp;(0 = desactivado)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección: Apariencia — próximamente -->
+        <div class="settings-section settings-section-disabled">
+          <h4 class="settings-section-title">🎨 Apariencia <span class="badge-soon">Próximamente</span></h4>
+          <div class="settings-row">
+            <label>Color de fondo del editor</label>
+            <div class="settings-row-control">
+              <input type="color" value="#1e1e2e" disabled>
+            </div>
+          </div>
+          <div class="settings-row">
+            <label>Color de texto</label>
+            <div class="settings-row-control">
+              <input type="color" value="#e2e8f0" disabled>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sección: Idioma — próximamente -->
+        <div class="settings-section settings-section-disabled">
+          <h4 class="settings-section-title">🌍 Idioma <span class="badge-soon">Próximamente</span></h4>
+          <div class="settings-row">
+            <label>Idioma de la interfaz</label>
+            <div class="settings-row-control">
+              <select disabled>
+                <option>Español</option>
+                <option>English</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-save-app-settings" class="btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Cargar módulos en orden de dependencias -->
 <script src="node_modules/marked/lib/marked.umd.js"></script>
 <script src="renderer/state.js"></script>
@@ -590,6 +653,7 @@
   <script src="renderer/newProject.js"></script>
   <script src="renderer/mindMap.js"></script>
   <script src="renderer/tramaTimeline.js"></script>
+  <script src="renderer/appSettings.js"></script>
   <script src="renderer/app.js"></script>
 </body>
 </html>
