@@ -179,6 +179,9 @@
       <button class="menu-item" data-action="new-file-here" data-folder-only="true">
         <span>📄</span> Nuevo archivo aquí
       </button>
+      <button class="menu-item" data-action="new-scene-here" data-folder-only="true">
+        <span>✍️</span> Nueva Escena
+      </button>
       <button class="menu-item" data-action="open-split">
         <span>⫽</span> Abrir en split derecho
       </button>
@@ -271,6 +274,26 @@
       <div class="modal-footer">
         <button class="btn-cancel">Cancelar</button>
         <button id="btn-confirm-new-chapter" class="btn-primary">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Nueva Escena -->
+  <div id="modal-new-scene" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>✍️ Nueva Escena</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <label>Nombre de la escena:</label>
+        <input type="text" id="input-scene-name" class="modal-input" placeholder="Escena 1">
+        <div id="scene-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-confirm-new-scene" class="btn-primary">Crear</button>
       </div>
     </div>
   </div>

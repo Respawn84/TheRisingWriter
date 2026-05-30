@@ -57,6 +57,59 @@ async function createNewFile() {
   }
 }
 
+// === NUEVA ESCENA ===
+
+function openNewSceneModal() {
+  if (!state.itemToRename || !state.itemToRename.isDirectory) return;
+  document.getElementById('input-scene-name').value = '';
+  document.getElementById('scene-error').classList.add('hidden');
+  openModal('modal-new-scene');
+  setTimeout(() => document.getElementById('input-scene-name').focus(), 100);
+}
+
+async function createNewScene() {
+  const rawName = document.getElementById('input-scene-name').value.trim();
+  const errorDiv = document.getElementById('scene-error');
+
+  if (!rawName) {
+    errorDiv.textContent = 'El nombre no puede estar vacío';
+    errorDiv.classList.remove('hidden');
+    return;
+  }
+
+  const fileName = rawName.endsWith('.txt') ? rawName : rawName + '.txt';
+
+  const targetFolder = (state.itemToRename && state.itemToRename.isDirectory)
+    ? state.itemToRename.path
+    : state.projectPath;
+
+  if (!targetFolder) {
+    errorDiv.textContent = 'No hay carpeta de destino';
+    errorDiv.classList.remove('hidden');
+    return;
+  }
+
+  const result = await window.electronAPI.createFile(targetFolder, fileName);
+
+  if (result.success) {
+    closeModal('modal-new-scene');
+    document.getElementById('input-scene-name').value = '';
+    errorDiv.classList.add('hidden');
+
+    const folderName = state.itemToRename ? state.itemToRename.name : 'raíz';
+    showNotification(`Escena creada en ${folderName}: ${fileName}`);
+
+    const fileToOpen = { name: fileName, path: result.path };
+    state.itemToRename = null;
+
+    await reloadPreservingExpanded();
+    await openFile(fileToOpen);
+  } else {
+    errorDiv.textContent = result.error || 'Error al crear la escena';
+    errorDiv.classList.remove('hidden');
+  }
+}
+
 // === NUEVO CAPÍTULO ===
 
 async function openNewChapterModal() {
@@ -120,6 +173,12 @@ function setupNewFileListeners() {
   document.getElementById('input-chapter-name').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') createChapter();
   });
+
+  document.getElementById('btn-confirm-new-scene').addEventListener('click', createNewScene);
+
+  document.getElementById('input-scene-name').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') createNewScene();
+  });
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -128,6 +187,8 @@ if (typeof module !== 'undefined' && module.exports) {
     setupNewFileListeners,
     openNewFileInFolderModal,
     openNewChapterModal,
-    createChapter
+    createChapter,
+    openNewSceneModal,
+    createNewScene
   };
 }

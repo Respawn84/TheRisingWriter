@@ -370,7 +370,11 @@ function showFileContextMenu(e, item) {
   }
   const newFileBtn = menu.querySelector('[data-action="new-file-here"]');
   if (newFileBtn) {
-    newFileBtn.style.display = item.isDirectory ? 'flex' : 'none';
+    newFileBtn.style.display = (item.isDirectory && !isChapterFolder) ? 'flex' : 'none';
+  }
+  const newSceneBtn = menu.querySelector('[data-action="new-scene-here"]');
+  if (newSceneBtn) {
+    newSceneBtn.style.display = (item.isDirectory && isChapterFolder) ? 'flex' : 'none';
   }
   const exportBtn = menu.querySelector('[data-action="export-docx"]');
   if (exportBtn) {
@@ -561,6 +565,8 @@ function setupFileSystemListeners() {
         openNewChapterModal();
       } else if (action === 'new-folder-here') {
         openModal('modal-folder');
+      } else if (action === 'new-scene-here') {
+        openNewSceneModal();
       } else if (action === 'new-file-here') {
         openNewFileInFolderModal();
       } else if (action === 'rename') {
