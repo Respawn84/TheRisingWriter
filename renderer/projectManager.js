@@ -438,7 +438,7 @@ let _wordFreqData = [];  // caché en memoria para filtrado rápido
 async function openWordFreqModal(folderPath) {
   const cached = state.projectData?.configuracion?.estadisticas?.capitulos?.[folderPath]?.frecuenciaPalabras;
   if (cached && cached.length > 0) {
-    showWordFreqModal(folderPath, cached, true);
+    showWordFreqModal(folderPath, cached);
   } else {
     await calculateAndShowWordFreq(folderPath);
   }
@@ -468,10 +468,10 @@ async function calculateAndShowWordFreq(folderPath) {
     await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   }
 
-  showWordFreqModal(folderPath, result.words, false);
+  showWordFreqModal(folderPath, result.words);
 }
 
-function showWordFreqModal(folderPath, words, fromCache) {
+function showWordFreqModal(folderPath, words) {
   const name = folderPath.split('/').pop();
   document.getElementById('word-freq-chapter-name').textContent = name;
   _wordFreqData = words;
@@ -490,7 +490,7 @@ function showWordFreqModal(folderPath, words, fromCache) {
   minInput.oninput = () => renderWordFreqTable(_wordFreqData, parseInt(minInput.value) || 1, searchInput.value.trim().toLowerCase());
   searchInput.oninput = () => renderWordFreqTable(_wordFreqData, parseInt(minInput.value) || 1, searchInput.value.trim().toLowerCase());
 
-  if (!fromCache) openModal('modal-word-freq');
+  openModal('modal-word-freq');
 }
 
 function renderWordFreqTable(words, minCount, filter) {
