@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Estadísticas de capítulo
   calculateChapterStats: (folderPath) => ipcRenderer.invoke('calculate-chapter-stats', folderPath),
-  calculateWordFrequency: (folderPath) => ipcRenderer.invoke('calculate-word-frequency', folderPath),
+  calculateWordFrequency: (folderPath, minLetters) => ipcRenderer.invoke('calculate-word-frequency', folderPath, minLetters),
 
   // Último fichero abierto
   saveLastFile: (filePath) => ipcRenderer.invoke('save-last-file', filePath),

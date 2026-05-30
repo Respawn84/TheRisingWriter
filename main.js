@@ -428,9 +428,10 @@ ipcMain.handle('calculate-chapter-stats', async (event, folderPath) => {
   }
 });
 
-// Handler: Calcular frecuencia de palabras de un capítulo (palabras >3 letras)
-ipcMain.handle('calculate-word-frequency', async (event, folderPath) => {
+// Handler: Calcular frecuencia de palabras de un capítulo
+ipcMain.handle('calculate-word-frequency', async (event, folderPath, minLetters = 4) => {
   try {
+    const min = Math.max(1, Math.floor(minLetters));
     const entries = await fs.readdir(folderPath, { withFileTypes: true });
     const txtFiles = entries
       .filter(e => e.isFile() && !e.name.startsWith('.') && e.name.endsWith('.txt'))
@@ -442,12 +443,12 @@ ipcMain.handle('calculate-word-frequency', async (event, folderPath) => {
       const words = content
         .toLowerCase()
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')   // quitar tildes para agrupar correctamente
+        .replace(/[̀-ͯ]/g, '')
         .replace(/[^a-z\s'-]/g, ' ')
         .split(/\s+/);
       for (const w of words) {
         const clean = w.replace(/^['-]+|['-]+$/g, '');
-        if (clean.length > 3) {
+        if (clean.length >= min) {
           freq[clean] = (freq[clean] || 0) + 1;
         }
       }
@@ -1135,7 +1136,8 @@ ipcMain.handle('get-app-settings', async () => {
   const props = await readProperties();
   return {
     // General
-    autosaveMinutes:  parseInt(props.autosaveMinutes || '0', 10),
+    autosaveMinutes:     parseInt(props.autosaveMinutes || '0', 10),
+    wordFreqMinLetters:  parseInt(props.wordFreqMinLetters || '4', 10),
     // Panel de escritura
     editorBg:         props.editorBg         || '',
     editorColor:      props.editorColor      || '',
@@ -1152,6 +1154,9 @@ ipcMain.handle('save-app-settings', async (_, settings) => {
   // General
   if (settings.autosaveMinutes !== undefined) {
     props.autosaveMinutes = String(Math.max(0, Math.floor(settings.autosaveMinutes)));
+  }
+  if (settings.wordFreqMinLetters !== undefined) {
+    props.wordFreqMinLetters = String(Math.max(1, Math.floor(settings.wordFreqMinLetters)));
   }
 
   // Panel de escritura — almacenar las claves si vienen en el objeto

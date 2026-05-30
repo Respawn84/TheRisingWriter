@@ -449,7 +449,10 @@ async function calculateAndShowWordFreq(folderPath) {
   openModal('modal-word-freq');
   document.getElementById('word-freq-chapter-name').textContent = folderPath.split('/').pop();
 
-  const result = await window.electronAPI.calculateWordFrequency(folderPath);
+  const settings = await window.electronAPI.getAppSettings();
+  const minLetters = settings.wordFreqMinLetters ?? 4;
+
+  const result = await window.electronAPI.calculateWordFrequency(folderPath, minLetters);
   if (!result.success) {
     document.getElementById('word-freq-summary').textContent = 'Error: ' + result.error;
     return;
@@ -461,6 +464,7 @@ async function calculateAndShowWordFreq(folderPath) {
     if (!state.projectData.configuracion.estadisticas.capitulos[folderPath]) state.projectData.configuracion.estadisticas.capitulos[folderPath] = {};
     state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaPalabras = result.words;
     state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaCalculado = new Date().toISOString().split('T')[0];
+    state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaMinLetras = minLetters;
     await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   }
 
