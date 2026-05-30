@@ -191,6 +191,9 @@
       <button class="menu-item" data-action="chapter-stats">
         <span>📊</span> Estadísticas del capítulo
       </button>
+      <button class="menu-item" data-action="word-frequency">
+        <span>🔤</span> Frecuencia de palabras
+      </button>
     </div>
     <div class="menu-divider"></div>
     <div class="menu-section" id="menu-mark-section">
@@ -571,6 +574,47 @@
     </div>
   </div>
 
+  <!-- Modal: Frecuencia de palabras del capítulo -->
+  <div id="modal-word-freq" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>🔤 Frecuencia de palabras</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <h4 id="word-freq-chapter-name" style="margin: 0 0 4px; color: var(--text-primary);"></h4>
+        <p id="word-freq-summary" style="margin: 0 0 14px; font-size: 0.85em; color: var(--text-muted);"></p>
+        <div style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+          <input id="word-freq-search" type="text" placeholder="Filtrar palabras…"
+            style="flex:1; padding:6px 10px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary); font-size:0.9em;">
+          <label style="font-size:0.85em; color:var(--text-muted); white-space:nowrap; display:flex; align-items:center; gap:4px;">
+            Mín. apariciones:
+            <input id="word-freq-min" type="number" value="2" min="1" max="999"
+              style="width:52px; padding:4px 6px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-secondary); color:var(--text-primary); font-size:0.9em;">
+          </label>
+        </div>
+        <div id="word-freq-table-wrap" style="max-height:420px; overflow-y:auto; border:1px solid var(--border-color); border-radius:8px;">
+          <table id="word-freq-table" style="width:100%; border-collapse:collapse; font-size:0.9em;">
+            <thead>
+              <tr style="position:sticky; top:0; background:var(--bg-secondary); z-index:1;">
+                <th style="padding:8px 14px; text-align:left; font-weight:600; color:var(--text-muted); border-bottom:1px solid var(--border-color);">#</th>
+                <th style="padding:8px 14px; text-align:left; font-weight:600; color:var(--text-muted); border-bottom:1px solid var(--border-color);">Palabra</th>
+                <th style="padding:8px 14px; text-align:right; font-weight:600; color:var(--text-muted); border-bottom:1px solid var(--border-color);">Usos</th>
+                <th style="padding:8px 14px; text-align:right; font-weight:600; color:var(--text-muted); border-bottom:1px solid var(--border-color);">Barra</th>
+              </tr>
+            </thead>
+            <tbody id="word-freq-tbody"></tbody>
+          </table>
+        </div>
+        <div id="word-freq-date" style="margin-top:10px; font-size:0.8em; color:var(--text-muted);"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cerrar</button>
+        <button id="btn-recalculate-word-freq" class="btn-primary">🔄 Recalcular</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal: Configuración del programa -->
   <div id="modal-app-settings" class="modal hidden">
@@ -599,6 +643,18 @@
               <div class="settings-row-control">
                 <input type="number" id="input-autosave-minutes" class="input" min="0" max="60" step="1" value="0">
                 <span class="settings-unit">minutos &nbsp;(0 = desactivado)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sección: Estadística de palabras -->
+          <div class="settings-section">
+            <h4 class="settings-section-title">🔤 Estadística de palabras</h4>
+            <div class="settings-row">
+              <label for="input-word-freq-min-letters">Mínimo de letras por palabra</label>
+              <div class="settings-row-control">
+                <input type="number" id="input-word-freq-min-letters" class="input" min="1" max="20" step="1" value="4">
+                <span class="settings-unit">letras</span>
               </div>
             </div>
           </div>

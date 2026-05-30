@@ -431,6 +431,96 @@ function showChapterStatsModal(folderPath, stats) {
   openModal('modal-chapter-stats');
 }
 
+// === FRECUENCIA DE PALABRAS ===
+
+let _wordFreqData = [];  // caché en memoria para filtrado rápido
+
+async function openWordFreqModal(folderPath) {
+  const cached = state.projectData?.configuracion?.estadisticas?.capitulos?.[folderPath]?.frecuenciaPalabras;
+  if (cached && cached.length > 0) {
+    showWordFreqModal(folderPath, cached);
+  } else {
+    await calculateAndShowWordFreq(folderPath);
+  }
+}
+
+async function calculateAndShowWordFreq(folderPath) {
+  document.getElementById('word-freq-summary').textContent = 'Calculando…';
+  openModal('modal-word-freq');
+  document.getElementById('word-freq-chapter-name').textContent = folderPath.split('/').pop();
+
+  const settings = await window.electronAPI.getAppSettings();
+  const minLetters = settings.wordFreqMinLetters ?? 4;
+
+  const result = await window.electronAPI.calculateWordFrequency(folderPath, minLetters);
+  if (!result.success) {
+    document.getElementById('word-freq-summary').textContent = 'Error: ' + result.error;
+    return;
+  }
+
+  if (state.projectData && state.projectJsonPath) {
+    if (!state.projectData.configuracion.estadisticas) state.projectData.configuracion.estadisticas = {};
+    if (!state.projectData.configuracion.estadisticas.capitulos) state.projectData.configuracion.estadisticas.capitulos = {};
+    if (!state.projectData.configuracion.estadisticas.capitulos[folderPath]) state.projectData.configuracion.estadisticas.capitulos[folderPath] = {};
+    state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaPalabras = result.words;
+    state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaCalculado = new Date().toISOString().split('T')[0];
+    state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaMinLetras = minLetters;
+    await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
+  }
+
+  showWordFreqModal(folderPath, result.words);
+}
+
+function showWordFreqModal(folderPath, words) {
+  const name = folderPath.split('/').pop();
+  document.getElementById('word-freq-chapter-name').textContent = name;
+  _wordFreqData = words;
+
+  const fecha = state.projectData?.configuracion?.estadisticas?.capitulos?.[folderPath]?.frecuenciaCalculado;
+  document.getElementById('word-freq-date').textContent = fecha ? `Calculado el ${fecha}` : '';
+  document.getElementById('btn-recalculate-word-freq').onclick = () => calculateAndShowWordFreq(folderPath);
+
+  const minInput = document.getElementById('word-freq-min');
+  const searchInput = document.getElementById('word-freq-search');
+  minInput.value = 2;
+  searchInput.value = '';
+
+  renderWordFreqTable(words, 2, '');
+
+  minInput.oninput = () => renderWordFreqTable(_wordFreqData, parseInt(minInput.value) || 1, searchInput.value.trim().toLowerCase());
+  searchInput.oninput = () => renderWordFreqTable(_wordFreqData, parseInt(minInput.value) || 1, searchInput.value.trim().toLowerCase());
+
+  openModal('modal-word-freq');
+}
+
+function renderWordFreqTable(words, minCount, filter) {
+  const tbody = document.getElementById('word-freq-tbody');
+  const filtered = words.filter(w => w.count >= minCount && (!filter || w.word.includes(filter)));
+  const max = filtered.length > 0 ? filtered[0].count : 1;
+
+  document.getElementById('word-freq-summary').textContent =
+    `${filtered.length.toLocaleString('es-ES')} palabras únicas · palabras con >${minCount - 1} apariciones`;
+
+  tbody.innerHTML = filtered.map((w, i) => {
+    const pct = Math.round((w.count / max) * 100);
+    const barColor = w.count >= 10 ? 'var(--accent-color, #e07b4a)' : 'var(--text-muted)';
+    return `<tr style="border-bottom:1px solid var(--border-color);">
+      <td style="padding:6px 14px; color:var(--text-muted); font-size:0.8em;">${i + 1}</td>
+      <td style="padding:6px 14px; color:var(--text-primary); font-weight:${w.count >= 5 ? '600' : '400'};">${w.word}</td>
+      <td style="padding:6px 14px; text-align:right; color:var(--text-primary); font-variant-numeric:tabular-nums;">${w.count}</td>
+      <td style="padding:6px 14px; min-width:80px;">
+        <div style="height:6px; border-radius:3px; background:var(--border-color); overflow:hidden;">
+          <div style="height:100%; width:${pct}%; background:${barColor}; border-radius:3px; transition:width .2s;"></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="padding:20px; text-align:center; color:var(--text-muted);">Sin resultados</td></tr>`;
+  }
+}
+
 // === CERRAR PROYECTO ===
 
 async function closeProject() {
@@ -501,6 +591,7 @@ if (typeof module !== 'undefined' && module.exports) {
     setupProjectListeners,
     getTypeBadge,
     isChapterFolder,
-    openChapterStats
+    openChapterStats,
+    openWordFreqModal
   };
 }

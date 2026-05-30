@@ -141,6 +141,8 @@ async function prepareAppSettingsModal() {
   // ── Tab General ──
   document.getElementById('input-autosave-minutes').value =
     settings.autosaveMinutes || 0;
+  document.getElementById('input-word-freq-min-letters').value =
+    settings.wordFreqMinLetters ?? 4;
 
   // ── Tab Editor ──
   const bg         = settings.editorBg         || EDITOR_DEFAULTS.editorBg;
@@ -191,12 +193,16 @@ async function saveAppSettings() {
   const minutesRaw = parseInt(document.getElementById('input-autosave-minutes').value, 10);
   const minutes    = isNaN(minutesRaw) || minutesRaw < 0 ? 0 : minutesRaw;
 
+  const minLettersRaw = parseInt(document.getElementById('input-word-freq-min-letters').value, 10);
+  const wordFreqMinLetters = isNaN(minLettersRaw) || minLettersRaw < 1 ? 4 : minLettersRaw;
+
   // ── Editor ──
   const fontSizeRaw = parseInt(document.getElementById('input-editor-font-size').value, 10);
   const fontSize    = isNaN(fontSizeRaw) ? EDITOR_DEFAULTS.editorFontSize : String(fontSizeRaw);
 
   const settingsToSave = {
-    autosaveMinutes:  minutes,
+    autosaveMinutes:    minutes,
+    wordFreqMinLetters: wordFreqMinLetters,
     editorBg:         document.getElementById('input-editor-bg').value,
     editorColor:      document.getElementById('input-editor-color').value,
     editorFontFamily: document.getElementById('select-editor-font').value,
