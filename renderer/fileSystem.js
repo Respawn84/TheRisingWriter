@@ -392,6 +392,11 @@ function showFileContextMenu(e, item) {
   if (chapterStatsBtn) {
     chapterStatsBtn.style.display = isChapterFolder ? 'flex' : 'none';
   }
+  // "Frecuencia de palabras" solo para carpetas de capítulo
+  const wordFreqBtn = menu.querySelector('[data-action="word-frequency"]');
+  if (wordFreqBtn) {
+    wordFreqBtn.style.display = isChapterFolder ? 'flex' : 'none';
+  }
   // Actualizar opciones de marcado si es directorio
   if (item.isDirectory) {
     updateContextMenuForDirectory(item.path);
@@ -581,6 +586,10 @@ function setupFileSystemListeners() {
       } else if (action === 'chapter-stats') {
         if (state.itemToRename?.path) {
           openChapterStats(state.itemToRename.path);
+        }
+      } else if (action === 'word-frequency') {
+        if (state.itemToRename?.path) {
+          openWordFreqModal(state.itemToRename.path);
         }
       }
     });

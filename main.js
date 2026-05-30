@@ -428,6 +428,41 @@ ipcMain.handle('calculate-chapter-stats', async (event, folderPath) => {
   }
 });
 
+// Handler: Calcular frecuencia de palabras de un capítulo (palabras >3 letras)
+ipcMain.handle('calculate-word-frequency', async (event, folderPath) => {
+  try {
+    const entries = await fs.readdir(folderPath, { withFileTypes: true });
+    const txtFiles = entries
+      .filter(e => e.isFile() && !e.name.startsWith('.') && e.name.endsWith('.txt'))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'));
+
+    const freq = {};
+    for (const file of txtFiles) {
+      const content = await fs.readFile(path.join(folderPath, file.name), 'utf-8');
+      const words = content
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')   // quitar tildes para agrupar correctamente
+        .replace(/[^a-z\s'-]/g, ' ')
+        .split(/\s+/);
+      for (const w of words) {
+        const clean = w.replace(/^['-]+|['-]+$/g, '');
+        if (clean.length > 3) {
+          freq[clean] = (freq[clean] || 0) + 1;
+        }
+      }
+    }
+
+    const sorted = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'))
+      .map(([word, count]) => ({ word, count }));
+
+    return { success: true, words: sorted };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 // Handler: Crear nuevo proyecto con estructura de carpetas
 ipcMain.handle('create-new-project', async (event, { parentPath, folderName, titulo, autor }) => {
   try {
