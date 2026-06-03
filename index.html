@@ -6,6 +6,7 @@
   <title>The Rising Editor</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/tramaTimeline.css">
+  <link rel="stylesheet" href="styles/genealogy.css">
   <link rel="stylesheet" href="styles/appSettings.css">
 </head>
 <body>
@@ -19,6 +20,7 @@
         <button id="btn-project-metadata" class="btn-icon" title="Metadatos del proyecto">📋</button>
         <button id="btn-mindmap" class="btn-icon" title="Mapa mental">🗺️</button>
         <button id="btn-timeline" class="btn-icon" title="Línea temporal de tramas">📊</button>
+        <button id="btn-genealogy" class="btn-icon" title="Árbol genealógico">🌳</button>
       </div>
       <div id="file-tree">
         <div class="empty-state">
@@ -95,6 +97,19 @@
           <div id="mindmap-hint">Rueda: zoom · Arrastrar: mover · Clic: abrir en split</div>
         </div>
         <div id="mindmap-container"></div>
+      </div>
+
+      <!-- Árbol genealógico Resizer + Panel -->
+      <div id="genealogy-resizer" class="hidden"></div>
+      <div id="genealogy-panel" class="hidden">
+        <div id="genealogy-toolbar">
+          <span id="genealogy-title">Árbol genealógico</span>
+          <button id="gen-add-persona" class="gen-toolbar-btn" title="Añadir persona">➕ Persona</button>
+          <button id="gen-add-swimlane" class="gen-toolbar-btn" title="Añadir banda / generación">➕ Banda</button>
+          <button id="gen-manage-linajes" class="gen-toolbar-btn" title="Gestionar linajes / clanes">🎨 Linajes</button>
+          <div id="genealogy-hint">Rueda: zoom · Arrastrar lienzo: mover · Arrastrar card: recolocar · Doble clic card: editar · Clic ⚭: hijos · Clic derecho card: opciones</div>
+        </div>
+        <div id="genealogy-container"></div>
       </div>
 
       <!-- Format bar -->
@@ -834,6 +849,7 @@
   <script src="renderer/newProject.js"></script>
   <script src="renderer/mindMap.js"></script>
   <script src="renderer/tramaTimeline.js"></script>
+  <script src="renderer/genealogy.js"></script>
   <script src="renderer/appSettings.js"></script>
   <script src="renderer/app.js"></script>
 </body>

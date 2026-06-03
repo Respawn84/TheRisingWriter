@@ -1,0 +1,407 @@
+/* ====================================
+   ÁRBOL GENEALÓGICO
+   Swimlanes horizontales, cards editables
+   Encastrado en el área del editor
+   ==================================== */
+
+#genealogy-resizer {
+  height: 5px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+#genealogy-resizer:hover,
+#genealogy-resizer.resizing {
+  background: var(--accent, #4a9eff);
+}
+
+#genealogy-resizer.hidden {
+  display: none;
+}
+
+#genealogy-panel {
+  flex-shrink: 0;
+  height: 360px;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  background: #0b1220;
+  overflow: hidden;
+  position: relative;
+}
+
+#genealogy-panel.hidden {
+  display: none;
+}
+
+#genealogy-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+}
+
+#genealogy-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.gen-toolbar-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  background: #334155;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: background 0.15s;
+}
+
+.gen-toolbar-btn:hover {
+  background: #475569;
+}
+
+#genealogy-hint {
+  flex: 1;
+  text-align: right;
+  font-size: 11px;
+  color: #475569;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#genealogy-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+#genealogy-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+#genealogy-svg .gen-card rect {
+  transition: filter 0.12s;
+}
+
+#genealogy-svg .gen-card:hover rect {
+  filter: brightness(1.3);
+}
+
+#btn-genealogy.active {
+  background: var(--accent, #4a9eff);
+  color: #fff;
+  border-radius: 4px;
+}
+
+/* Label izquierdo editable de cada swimlane */
+.gen-lane-label {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #cbd5e1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: text;
+}
+
+.gen-lane-label.editing {
+  outline: 2px solid #4a9eff;
+  background: #0b1220;
+  cursor: text;
+}
+
+/* Menú contextual */
+.gen-context-menu {
+  position: fixed;
+  z-index: 10001;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 210px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.gen-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  font-size: 13px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.gen-menu-item:hover {
+  background: #334155;
+}
+
+.gen-menu-sep {
+  height: 1px;
+  background: #334155;
+  margin: 4px 2px;
+}
+
+/* Popover editor de persona */
+.gen-editor-popover {
+  position: absolute;
+  top: 50px;
+  right: 16px;
+  z-index: 10002;
+  width: 300px;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.gen-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.gen-editor-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.gen-editor-close:hover {
+  color: #e2e8f0;
+}
+
+.gen-field {
+  display: block;
+  margin-bottom: 9px;
+}
+
+.gen-field span {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 3px;
+}
+
+.gen-field input,
+.gen-field select,
+.gen-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 6px 8px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.gen-field input:focus,
+.gen-field select:focus,
+.gen-field textarea:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.gen-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.gen-btn-primary,
+.gen-btn-secondary {
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+
+.gen-btn-primary {
+  background: #4a9eff;
+  color: #fff;
+}
+
+.gen-btn-primary:hover {
+  background: #3b82f6;
+}
+
+.gen-btn-secondary {
+  background: #334155;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+.gen-btn-secondary:hover {
+  background: #475569;
+}
+
+/* Gestor de linajes */
+.gen-linaje-popover {
+  position: absolute;
+  top: 50px;
+  right: 16px;
+  z-index: 10002;
+  width: 320px;
+  max-height: calc(100% - 70px);
+  display: flex;
+  flex-direction: column;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.gen-lin-list {
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.gen-lin-row {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  margin-bottom: 8px;
+  background: #0f172a;
+}
+
+.gen-lin-row.focus {
+  border-color: #4a9eff;
+  box-shadow: 0 0 0 1px #4a9eff inset;
+}
+
+.gen-lin-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.gen-lin-name {
+  flex: 1;
+  min-width: 0;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 5px 8px;
+  font-family: inherit;
+}
+
+.gen-lin-name:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.gen-lin-usage {
+  flex-shrink: 0;
+  min-width: 22px;
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 2px 6px;
+}
+
+.gen-lin-del {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 5px;
+}
+
+.gen-lin-del:hover:not(:disabled) {
+  background: #3d1a1a;
+  color: #fca5a5;
+}
+
+.gen-lin-del:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.gen-lin-swatches {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.gen-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s;
+}
+
+.gen-swatch:hover {
+  transform: scale(1.12);
+}
+
+.gen-swatch.selected {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.gen-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.6;
+}
