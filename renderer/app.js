@@ -57,6 +57,7 @@ function setupAllListeners() {
   setupNewProjectListeners();
   setupMindMapListeners();
   setupTramaTimelineListeners();
+  setupGenealogyListeners();
   setupAppSettingsListeners();
 }
 
