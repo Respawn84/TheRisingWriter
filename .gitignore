@@ -48,3 +48,4 @@ assets/icon.iconset/
 #Configuracion de Claude
 CLAUDE.md
 .claude/
+rising-writer.properties

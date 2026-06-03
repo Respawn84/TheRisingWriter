@@ -15,6 +15,7 @@
     <div id="sidebar">
       <div class="sidebar-traffic-zone"></div>
       <div class="sidebar-header">
+        <button id="btn-new-root-folder" class="btn-icon" title="Nueva carpeta en la raíz">📁+</button>
         <button id="btn-project-metadata" class="btn-icon" title="Metadatos del proyecto">📋</button>
         <button id="btn-mindmap" class="btn-icon" title="Mapa mental">🗺️</button>
         <button id="btn-timeline" class="btn-icon" title="Línea temporal de tramas">📊</button>
@@ -205,6 +206,14 @@
       </button>
       <button class="menu-item" data-action="unmark">
         <span>❌</span> Desmarcar
+      </button>
+    </div>
+    <div class="menu-section" id="menu-order-section">
+      <button class="menu-item" data-action="move-up">
+        <span>⬆</span> Subir
+      </button>
+      <button class="menu-item" data-action="move-down">
+        <span>⬇</span> Bajar
       </button>
     </div>
     <div class="menu-section">

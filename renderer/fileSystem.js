@@ -5,22 +5,113 @@
 // Cargar proyecto
 async function loadProject(path) {
   state.projectPath = path;
-  
+
   // Cargar o crear proyecto JSON
   await loadOrCreateProject(path);
 
+  // Registrar carpetas físicas no rastreadas como "otros"
+  await syncPhysicalFolders();
+
   // Leer directorio
-  
   const items = await window.electronAPI.readDirectory(state.projectRootPath);
-  
+
+  // Aplicar orden personalizado a carpetas raíz
+  const orderedItems = applyFolderOrder(items);
+
   // Filtrar según proyecto
-  const filteredItems = filterTreeByProject(items);
-  
+  const filteredItems = filterTreeByProject(orderedItems);
+
   // Obtener contenedor del árbol
   const fileTree = document.getElementById('file-tree');
-  
+
   // Renderizar
   renderFileTree(fileTree, filteredItems, 0);
+}
+
+// Ordenar carpetas raíz según configuracion.ordenCarpetas
+function applyFolderOrder(items) {
+  if (!state.projectData) return items;
+  const order = state.projectData.configuracion.ordenCarpetas || [];
+  const dirs = items.filter(i => i.isDirectory);
+  const files = items.filter(i => !i.isDirectory);
+
+  dirs.sort((a, b) => {
+    const ai = order.indexOf(a.path);
+    const bi = order.indexOf(b.path);
+    if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+
+  return [...dirs, ...files];
+}
+
+// Mover carpeta raíz arriba o abajo en el orden
+async function moveFolderInOrder(dirPath, direction) {
+  if (!state.projectData || !state.projectJsonPath) return;
+
+  const items = await window.electronAPI.readDirectory(state.projectRootPath);
+  const allDirPaths = items.filter(i => i.isDirectory).map(i => i.path);
+
+  let order = [...(state.projectData.configuracion.ordenCarpetas || [])];
+
+  // Inicializar con el orden actual si está vacío
+  if (order.length === 0) {
+    order = applyFolderOrder(items).filter(i => i.isDirectory).map(i => i.path);
+  } else {
+    // Añadir entradas nuevas al final, limpiar rutas obsoletas
+    for (const p of allDirPaths) {
+      if (!order.includes(p)) order.push(p);
+    }
+    order = order.filter(p => allDirPaths.includes(p));
+  }
+
+  const idx = order.indexOf(dirPath);
+  if (idx === -1) return;
+
+  if (direction === 'up' && idx > 0) {
+    [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+  } else if (direction === 'down' && idx < order.length - 1) {
+    [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
+  } else {
+    return;
+  }
+
+  state.projectData.configuracion.ordenCarpetas = order;
+  await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
+  await reloadPreservingExpanded();
+}
+
+// Detectar carpetas físicas no rastreadas y añadirlas a "otros"
+async function syncPhysicalFolders() {
+  if (!state.projectData || !state.projectJsonPath) return;
+
+  const items = await window.electronAPI.readDirectory(state.projectRootPath);
+  const physicalFolders = items.filter(i => i.isDirectory);
+
+  const dirs = state.projectData.configuracion.directorios;
+
+  // Recopilar todas las rutas ya rastreadas
+  const trackedPaths = new Set();
+  const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
+  tipos.forEach(t => { if (dirs[t]?.ruta) trackedPaths.add(dirs[t].ruta); });
+  (dirs.otros || []).forEach(o => trackedPaths.add(o.ruta));
+
+  // Añadir las no rastreadas
+  let added = false;
+  for (const folder of physicalFolders) {
+    if (!trackedPaths.has(folder.path)) {
+      if (!dirs.otros) dirs.otros = [];
+      dirs.otros.push({ ruta: folder.path, mostrar: true });
+      added = true;
+    }
+  }
+
+  if (added) {
+    state.hasMarkedDirs = hasMarkedDirectories();
+    await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
+  }
 }
 
 // === DRAG AND DROP ===
@@ -407,6 +498,11 @@ function showFileContextMenu(e, item) {
   } else {
     document.getElementById('menu-mark-section').style.display = 'none';
   }
+
+  // Mostrar "Subir / Bajar" solo para carpetas de primer nivel
+  const isRootFolder = item.isDirectory &&
+    item.path.substring(0, item.path.lastIndexOf('/')) === state.projectRootPath;
+  document.getElementById('menu-order-section').style.display = isRootFolder ? '' : 'none';
 }
 
 // Ocultar menús contextuales
@@ -553,6 +649,12 @@ function setupFileSystemListeners() {
     if (result.success) loadProject(result.path);
   });
 
+  document.getElementById('btn-new-root-folder').addEventListener('click', () => {
+    if (!state.projectRootPath) return;
+    state.itemToRename = null;
+    openModal('modal-folder');
+  });
+
   
   // Menú contextual de archivos
   document.getElementById('file-context-menu').querySelectorAll('.menu-item').forEach(item => {
@@ -596,6 +698,14 @@ function setupFileSystemListeners() {
       } else if (action === 'word-frequency') {
         if (state.itemToRename?.path) {
           openWordFreqModal(state.itemToRename.path);
+        }
+      } else if (action === 'move-up') {
+        if (state.itemToRename?.path) {
+          await moveFolderInOrder(state.itemToRename.path, 'up');
+        }
+      } else if (action === 'move-down') {
+        if (state.itemToRename?.path) {
+          await moveFolderInOrder(state.itemToRename.path, 'down');
         }
       }
     });
