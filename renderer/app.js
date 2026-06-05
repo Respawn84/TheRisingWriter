@@ -31,6 +31,10 @@ function setupMainEventListeners() {
     openModal('modal-ai-config');
   });
 
+  window.electronAPI.onShowCostReport(() => {
+    openModal('modal-cost-report');
+  });
+
   window.electronAPI.onShowFindReplace(() => {
     openModal('modal-find-replace');
   });
@@ -58,6 +62,7 @@ function setupAllListeners() {
   setupMoveFileListeners();
   setupFindReplaceListeners();
   setupAIPanelListeners();
+  setupSceneReviewListeners();
   setupNewProjectListeners();
   setupMindMapListeners();
   setupTramaTimelineListeners();

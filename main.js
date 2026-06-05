@@ -139,6 +139,10 @@ function createMenu() {
           label: 'Estadísticas...',
           accelerator: 'CmdOrCtrl+Shift+U',
           click: () => mainWindow.webContents.send('show-usage-stats')
+        },
+        {
+          label: 'Costes de la API...',
+          click: () => mainWindow.webContents.send('show-cost-report')
         }
       ]
     }
@@ -658,7 +662,11 @@ async function readAIConfig() {
   }
   return {
     apiKey: stored.apiKey || process.env.ANTHROPIC_API_KEY || '',
-    model: stored.model || DEFAULT_MODEL
+    model: stored.model || DEFAULT_MODEL,
+    // Clave Admin (sk-ant-admin...), necesaria para el endpoint de costes.
+    adminApiKey: stored.adminApiKey || process.env.ANTHROPIC_ADMIN_KEY || '',
+    // Límite de gasto mensual en USD. 0 = sin límite.
+    spendLimit: parseFloat(stored.spendLimit) || 0
   };
 }
 const PROPERTIES_FILE = path.join(
@@ -675,17 +683,119 @@ ipcMain.handle('get-ai-config', async () => {
   return await readAIConfig();
 });
 
-ipcMain.handle('save-ai-config', async (event, { apiKey, model }) => {
+ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spendLimit }) => {
   try {
     await fs.writeFile(
       AI_CONFIG_FILE,
-      JSON.stringify({ apiKey: apiKey || '', model: model || DEFAULT_MODEL }, null, 2)
+      JSON.stringify({
+        apiKey: apiKey || '',
+        model: model || DEFAULT_MODEL,
+        adminApiKey: adminApiKey || '',
+        spendLimit: parseFloat(spendLimit) || 0
+      }, null, 2)
     );
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
+
+// Informe de costes de la organización (Admin API). Reporta GASTO, no saldo.
+async function fetchCostReport() {
+  const { apiKey, adminApiKey } = await readAIConfig();
+  const key = adminApiKey || apiKey;
+  if (!key) {
+    return { success: false, error: 'No hay clave configurada. Ábrela en IA → Configuración.' };
+  }
+
+  // Rango: desde el primer día del mes en curso (alineado a día, UTC).
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const params = new URLSearchParams({
+    starting_at: start.toISOString(),
+    bucket_width: '1d',
+    limit: '31'
+  });
+
+  const res = await fetch(`https://api.anthropic.com/v1/organizations/cost_report?${params}`, {
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01'
+    }
+  });
+
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg = body?.error?.message || `HTTP ${res.status}`;
+    return { success: false, status: res.status, error: msg };
+  }
+
+  return { success: true, data: body, startedAt: start.toISOString() };
+}
+
+ipcMain.handle('get-cost-report', async () => {
+  try {
+    return await fetchCostReport();
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Suma todos los importes de un cost_report.
+function sumCostReport(report) {
+  let total = 0;
+  for (const bucket of report?.data?.data || []) {
+    for (const r of bucket.results || []) {
+      total += parseFloat(r.amount) || 0;
+    }
+  }
+  return total;
+}
+
+// Gasto del mes en curso vía cost_report, cacheado 5 min. Devuelve null si no
+// se puede obtener (sin clave admin, error de red, etc.).
+let costReportCache = { at: 0, total: null };
+async function getMonthSpendFromReport() {
+  const now = Date.now();
+  if (costReportCache.total !== null && now - costReportCache.at < 5 * 60 * 1000) {
+    return costReportCache.total;
+  }
+  try {
+    const report = await fetchCostReport();
+    if (!report.success) return null;
+    const total = sumCostReport(report);
+    costReportCache = { at: now, total };
+    return total;
+  } catch {
+    return null;
+  }
+}
+
+// Gasto del mes en curso según el registro local (usage.log). Solo cuenta lo
+// gastado a través de esta app; sirve de respaldo si no hay clave admin.
+async function getLocalMonthSpend() {
+  try {
+    const data = await fs.readFile(LOG_FILE, 'utf-8');
+    const now = new Date();
+    const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+    return data.trim().split('\n').filter(Boolean)
+      .map(l => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(t => t && new Date(t.timestamp).getTime() >= start)
+      .reduce((s, t) => s + (t.cost || 0), 0);
+  } catch {
+    return 0;
+  }
+}
+
+// Gasto del mes para la guardia de consumo. El informe real puede ir retrasado
+// (y se cachea 5 min), así que tomamos el máximo entre él y el registro local,
+// que refleja al instante las llamadas hechas desde la app. Si no hay informe,
+// usamos solo el local.
+async function getMonthSpend() {
+  const local = await getLocalMonthSpend();
+  const fromReport = await getMonthSpendFromReport();
+  return fromReport !== null ? Math.max(fromReport, local) : local;
+}
 
 ipcMain.handle('get-pricing', async () => {
   try {
@@ -771,11 +881,23 @@ ipcMain.handle('open-ai-trace-log', async () => {
   }
 });
 
-ipcMain.handle('call-claude', async (event, { selectedText, action }) => {
+ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens }) => {
   try {
-    const { apiKey, model } = await readAIConfig();
+    const { apiKey, model, spendLimit } = await readAIConfig();
     if (!apiKey) {
       return { success: false, error: 'API Key no configurada. Ábrela en IA → Configuración.' };
+    }
+
+    // Alerta de consumo: bloquear si el gasto del mes ya alcanza el límite.
+    if (spendLimit > 0) {
+      const monthSpend = await getMonthSpend();
+      if (monthSpend >= spendLimit) {
+        return {
+          success: false,
+          error: `Límite de gasto mensual alcanzado: $${monthSpend.toFixed(2)} de $${spendLimit.toFixed(2)}. ` +
+            `Ajusta el límite en IA → Configuración para seguir usando la IA.`
+        };
+      }
     }
 
     const Anthropic = require('@anthropic-ai/sdk');
@@ -818,7 +940,7 @@ ipcMain.handle('call-claude', async (event, { selectedText, action }) => {
 
     const message = await client.messages.create({
       model,
-      max_tokens: 2000,
+      max_tokens: maxTokens || 2000,
       system: req.system,
       messages: [{ role: 'user', content: req.user }]
     });

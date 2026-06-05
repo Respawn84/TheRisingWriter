@@ -7,6 +7,7 @@ function openModal(modalId) {
   
   if (modalId === 'modal-stats') loadStats();
   if (modalId === 'modal-ai-config') loadAIConfig();
+  if (modalId === 'modal-cost-report') loadCostReport();
   if (modalId === 'modal-rename') prepareRenameModal();
   if (modalId === 'modal-delete') prepareDeleteModal();
   if (modalId === 'modal-new-file') prepareNewFileModal();
@@ -67,7 +68,9 @@ async function loadAIConfig() {
     window.electronAPI.getPricing()
   ]);
   document.getElementById('input-api-key').value = config.apiKey || '';
+  document.getElementById('input-admin-api-key').value = config.adminApiKey || '';
   document.getElementById('select-model').value = config.model;
+  document.getElementById('input-spend-limit').value = config.spendLimit || '';
   document.getElementById('input-price-in').value = pricing.inputPrice;
   document.getElementById('input-price-out').value = pricing.outputPrice;
 }
@@ -75,7 +78,9 @@ async function loadAIConfig() {
 async function saveAIConfig() {
   const config = {
     apiKey: document.getElementById('input-api-key').value.trim(),
-    model: document.getElementById('select-model').value
+    adminApiKey: document.getElementById('input-admin-api-key').value.trim(),
+    model: document.getElementById('select-model').value,
+    spendLimit: parseFloat(document.getElementById('input-spend-limit').value) || 0
   };
   const pricing = {
     inputPrice: parseFloat(document.getElementById('input-price-in').value),
@@ -95,6 +100,59 @@ async function saveAIConfig() {
     errorEl.textContent = configResult.error || pricingResult.error || 'Error al guardar';
     errorEl.classList.remove('hidden');
   }
+}
+
+// === MODAL COSTES DE LA API ===
+async function loadCostReport() {
+  const loading = document.getElementById('cost-report-loading');
+  const errorEl = document.getElementById('cost-report-error');
+  const content = document.getElementById('cost-report-content');
+  loading.classList.remove('hidden');
+  errorEl.classList.add('hidden');
+  content.classList.add('hidden');
+
+  const result = await window.electronAPI.getCostReport();
+  loading.classList.add('hidden');
+
+  if (!result.success) {
+    let msg = result.error || 'No se pudo obtener el informe de costes.';
+    if (result.status === 401) {
+      msg = 'Clave no autorizada. El informe de costes requiere una Admin API key (sk-ant-admin…). Configúrala en IA → Configuración.';
+    }
+    errorEl.textContent = msg;
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  // Sumar importes por bucket (día) y total.
+  const buckets = (result.data?.data || []).map(bucket => {
+    const amount = (bucket.results || []).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const currency = bucket.results?.[0]?.currency || 'USD';
+    return { date: (bucket.starting_at || '').slice(0, 10), amount, currency };
+  });
+
+  const total = buckets.reduce((s, b) => s + b.amount, 0);
+  const currency = buckets.find(b => b.amount > 0)?.currency || 'USD';
+  document.getElementById('cost-report-total-value').textContent = `${formatMoney(total)} ${currency}`;
+
+  const table = document.getElementById('cost-report-table');
+  const withSpend = buckets.filter(b => b.amount > 0);
+  if (withSpend.length === 0) {
+    table.innerHTML = '<p class="empty-state">Sin gasto registrado este mes</p>';
+  } else {
+    table.innerHTML = withSpend.map(b => `
+      <div class="cost-report-row">
+        <span class="cost-report-date">${b.date}</span>
+        <span class="cost-report-amount">${formatMoney(b.amount)} ${b.currency}</span>
+      </div>
+    `).join('');
+  }
+
+  content.classList.remove('hidden');
+}
+
+function formatMoney(n) {
+  return `$${n.toFixed(2)}`;
 }
 
 // === MODAL RENAME ===
@@ -187,6 +245,10 @@ function setupModalListeners() {
   document.getElementById('btn-save-ai-config').addEventListener('click', saveAIConfig);
   document.getElementById('btn-toggle-api-key').addEventListener('click', () => {
     const input = document.getElementById('input-api-key');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+  document.getElementById('btn-toggle-admin-api-key').addEventListener('click', () => {
+    const input = document.getElementById('input-admin-api-key');
     input.type = input.type === 'password' ? 'text' : 'password';
   });
   

@@ -123,6 +123,8 @@
         <button id="btn-quotes-latina" class="btn-format" title="Comillas latinas">« »</button>
         <button id="btn-quotes-raya" class="btn-format" title="Raya">—</button>
         <button id="btn-quotes-normal" class="btn-format" title="Comillas">" "</button>
+        <div class="divider"></div>
+        <button id="btn-review-scene" class="btn-format" title="Revisar ortotipografía de toda la escena con IA">🔍 Revisar escena</button>
         <div class="format-bar-right">
           <span id="word-count">0 palabras</span>
         </div>
@@ -542,6 +544,12 @@
           <button type="button" id="btn-toggle-api-key" class="btn-secondary" title="Mostrar/ocultar">👁️</button>
         </div>
 
+        <label>Clave Admin API (opcional, para «Costes de la API»):</label>
+        <div class="api-key-row">
+          <input type="password" id="input-admin-api-key" class="modal-input" placeholder="sk-ant-admin..." autocomplete="off">
+          <button type="button" id="btn-toggle-admin-api-key" class="btn-secondary" title="Mostrar/ocultar">👁️</button>
+        </div>
+
         <label>Modelo:</label>
         <select id="select-model" class="modal-input">
           <option value="claude-opus-4-8">Opus 4.8 (claude-opus-4-8)</option>
@@ -556,11 +564,84 @@
         <label>Precio Output ($/millón tokens):</label>
         <input type="number" id="input-price-out" class="modal-input" step="0.01" value="15.00">
 
+        <h4 style="margin-top: 20px;">🔔 Alerta de consumo API</h4>
+        <label>Gasto máximo mensual ($):</label>
+        <input type="number" id="input-spend-limit" class="modal-input" step="0.01" min="0" placeholder="0 = sin límite">
+        <p class="field-hint">Antes de cada llamada se comprueba el gasto del mes en curso. Si alcanza este valor, la llamada se bloquea. Deja 0 o vacío para no limitar.</p>
+
         <div id="ai-config-error" class="error hidden"></div>
       </div>
       <div class="modal-footer">
         <button class="btn-cancel">Cancelar</button>
         <button id="btn-save-ai-config" class="btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-cost-report" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>💳 Costes de la API</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="cost-report-loading" class="loading">
+          <div class="spinner"></div>
+          <p>Consultando costes...</p>
+        </div>
+        <div id="cost-report-error" class="error hidden"></div>
+        <div id="cost-report-content" class="hidden">
+          <div class="cost-report-total">
+            <span class="cost-report-total-label">Gasto del mes en curso</span>
+            <span id="cost-report-total-value" class="cost-report-total-value">$0.00</span>
+          </div>
+          <div id="cost-report-table" class="cost-report-table"></div>
+          <p class="cost-report-note">
+            ⚠️ La API de Claude solo expone el <strong>gasto</strong>, no el saldo restante.
+            Para ver el crédito disponible consulta la consola de Anthropic (Billing).
+          </p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-scene-review" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-xlarge">
+      <div class="modal-header">
+        <h3>🔍 Revisión ortotipográfica</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="scene-review-loading" class="loading">
+          <div class="spinner"></div>
+          <p>Revisando la escena...</p>
+        </div>
+        <div id="scene-review-error" class="error hidden"></div>
+        <div id="scene-review-content" class="hidden">
+          <div class="scene-review-diff">
+            <div class="diff-column">
+              <div class="diff-column-title">Original</div>
+              <div id="diff-original" class="diff-pane"></div>
+            </div>
+            <div class="diff-column">
+              <div class="diff-column-title">Corregido</div>
+              <div id="diff-corrected" class="diff-pane"></div>
+            </div>
+          </div>
+          <div class="scene-review-result-wrap">
+            <label for="scene-review-result">Resultado editable:</label>
+            <textarea id="scene-review-result" class="modal-input"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-apply-scene-review" class="btn-primary">✓ Aplicar</button>
       </div>
     </div>
   </div>
@@ -863,6 +944,7 @@
   <script src="renderer/exportDoc.js"></script>
   <script src="renderer/exportEpub.js"></script>
   <script src="renderer/aiPanel.js"></script>
+  <script src="renderer/sceneReview.js"></script>
   <script src="renderer/newProject.js"></script>
   <script src="renderer/mindMap.js"></script>
   <script src="renderer/tramaTimeline.js"></script>
