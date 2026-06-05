@@ -26,7 +26,11 @@ function setupMainEventListeners() {
   window.electronAPI.onShowUsageStats(() => {
     openModal('modal-stats');
   });
-  
+
+  window.electronAPI.onShowAIConfig(() => {
+    openModal('modal-ai-config');
+  });
+
   window.electronAPI.onShowFindReplace(() => {
     openModal('modal-find-replace');
   });

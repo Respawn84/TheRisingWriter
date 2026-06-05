@@ -69,6 +69,22 @@
   margin-bottom: 12px;
 }
 
+/* API KEY ROW */
+.api-key-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.api-key-row .modal-input {
+  flex: 1;
+}
+
+.api-key-row .btn-secondary {
+  flex: 0 0 auto;
+  height: 35px;
+}
+
 /* FOOTER */
 .modal-footer {
   padding: 12px 16px;

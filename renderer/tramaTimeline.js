@@ -358,7 +358,9 @@ function setupTimelineInteraction() {
 
     if (type === 'scene' && filePath) {
       const fileName = filePath.split('/').pop();
-      openTab({ name: fileName, path: filePath });
+      const file = { name: fileName, path: filePath };
+      openTab(file);
+      openSceneMetadataPanel(file);
       showNotification(`Escena cargada: ${fileName}`);
     } else if (type === 'trama' && filePath) {
       await openInSplit({ name: filePath.split('/').pop(), path: filePath });

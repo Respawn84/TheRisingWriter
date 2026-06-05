@@ -131,6 +131,11 @@ function createMenu() {
       label: 'IA',
       submenu: [
         {
+          label: 'Configuración...',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          click: () => mainWindow.webContents.send('show-ai-config')
+        },
+        {
           label: 'Estadísticas...',
           accelerator: 'CmdOrCtrl+Shift+U',
           click: () => mainWindow.webContents.send('show-usage-stats')
@@ -637,13 +642,49 @@ ipcMain.handle('get-directory-type', async (event, jsonPath, dirPath) => {
 
 const PRICING_FILE = path.join(app.getPath('userData'), 'pricing.json');
 const LOG_FILE = path.join(app.getPath('userData'), 'usage.log');
+const TRACE_LOG_FILE = path.join(app.getPath('userData'), 'ai-trace.log');
+const AI_CONFIG_FILE = path.join(app.getPath('userData'), 'ai-config.json');
+
+const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+
+// Lee la configuración de IA (clave + modelo). La clave del fichero tiene
+// prioridad; si no existe, se usa la variable de entorno ANTHROPIC_API_KEY.
+async function readAIConfig() {
+  let stored = {};
+  try {
+    stored = JSON.parse(await fs.readFile(AI_CONFIG_FILE, 'utf-8'));
+  } catch {
+    stored = {};
+  }
+  return {
+    apiKey: stored.apiKey || process.env.ANTHROPIC_API_KEY || '',
+    model: stored.model || DEFAULT_MODEL
+  };
+}
 const PROPERTIES_FILE = path.join(
   app.isPackaged ? path.dirname(app.getPath('exe')) : __dirname,
   'rising-writer.properties'
 );
 
-ipcMain.handle('get-api-key', () => {
-  return process.env.ANTHROPIC_API_KEY || '';
+ipcMain.handle('get-api-key', async () => {
+  const { apiKey } = await readAIConfig();
+  return apiKey;
+});
+
+ipcMain.handle('get-ai-config', async () => {
+  return await readAIConfig();
+});
+
+ipcMain.handle('save-ai-config', async (event, { apiKey, model }) => {
+  try {
+    await fs.writeFile(
+      AI_CONFIG_FILE,
+      JSON.stringify({ apiKey: apiKey || '', model: model || DEFAULT_MODEL }, null, 2)
+    );
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle('get-pricing', async () => {
@@ -682,6 +723,20 @@ async function logTransaction(action, inputTokens, outputTokens, cost) {
   }
 }
 
+// Traza legible de cada petición a la IA: texto enviado y respuesta completa.
+async function logAITrace({ action, model, sentText, response, inputTokens, outputTokens, cost }) {
+  const entry =
+    `===== ${new Date().toISOString()} | ${action} | ${model} =====\n` +
+    `--- ENVIADO ---\n${sentText}\n` +
+    `--- RESPUESTA ---\n${response}\n` +
+    `--- tokens: in=${inputTokens} out=${outputTokens} coste=$${cost.toFixed(6)} ---\n\n`;
+  try {
+    await fs.appendFile(TRACE_LOG_FILE, entry);
+  } catch (error) {
+    console.error('Error escribiendo traza IA:', error);
+  }
+}
+
 ipcMain.handle('get-usage-stats', async () => {
   try {
     const data = await fs.readFile(LOG_FILE, 'utf-8');
@@ -706,34 +761,81 @@ ipcMain.handle('open-log-file', async () => {
   }
 });
 
+ipcMain.handle('open-ai-trace-log', async () => {
+  try {
+    // Garantizar que el fichero existe antes de abrirlo (aún sin peticiones).
+    await fs.appendFile(TRACE_LOG_FILE, '');
+    await shell.openPath(TRACE_LOG_FILE);
+  } catch (error) {
+    console.error('Error abriendo traza IA:', error);
+  }
+});
+
 ipcMain.handle('call-claude', async (event, { selectedText, action }) => {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const { apiKey, model } = await readAIConfig();
     if (!apiKey) {
-      return { success: false, error: 'API Key no configurada. Edita el archivo .env' };
+      return { success: false, error: 'API Key no configurada. Ábrela en IA → Configuración.' };
     }
 
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey });
 
-    const prompts = {
-      corregir: `Corrige SOLO ortografía, puntuación y tipografía. NO cambies palabras ni estructura. Si no hay errores, devuelve el texto igual.\n\n${selectedText}\n\nTexto corregido:`,
-      sinonimos: `Sugiere 5 sinónimos para "${selectedText}" en español. Solo lista numerada, sin explicaciones.`,
-      mejorar: `Mejora este texto manteniendo el estilo:\n\n${selectedText}\n\nTexto mejorado:`,
-      expandir: `Expande este texto con más detalles:\n\n${selectedText}\n\nTexto expandido:`
+    // Cada acción define un system prompt (reglas de comportamiento) y el
+    // contenido del turno user. Mantener las reglas en el system evita que el
+    // modelo responda de forma conversacional (p. ej. "El texto no necesita
+    // corrección") en lugar de devolver el texto.
+    const requests = {
+      corregir: {
+        system: 'Eres un corrector ortotipográfico de textos literarios en español. ' +
+          'Corrige ÚNICAMENTE ortografía, acentuación, puntuación y tipografía ' +
+          '(comillas, rayas de diálogo, espacios, guiones). NO cambies palabras, ' +
+          'vocabulario, estilo ni estructura. Tu respuesta debe contener EXCLUSIVAMENTE ' +
+          'el texto corregido: sin comentarios, sin explicaciones, sin preámbulos y sin ' +
+          'comillas que lo envuelvan. Si el texto no contiene ningún error, devuélvelo ' +
+          'exactamente igual, carácter por carácter.',
+        user: selectedText
+      },
+      sinonimos: {
+        system: 'Eres un diccionario de sinónimos en español. Responde solo con una lista ' +
+          'numerada de 5 sinónimos, sin explicaciones ni texto adicional.',
+        user: `Palabra o expresión: "${selectedText}"`
+      },
+      mejorar: {
+        system: 'Eres un editor literario. Mejora el texto del usuario manteniendo su estilo, ' +
+          'voz y significado. Responde EXCLUSIVAMENTE con el texto mejorado, sin comentarios ' +
+          'ni preámbulos.',
+        user: selectedText
+      },
+      expandir: {
+        system: 'Eres un escritor que amplía textos con más detalle, manteniendo el estilo y la ' +
+          'coherencia. Responde EXCLUSIVAMENTE con el texto expandido, sin comentarios ni preámbulos.',
+        user: selectedText
+      }
     };
 
+    const req = requests[action] || { system: undefined, user: selectedText };
+
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model,
       max_tokens: 2000,
-      messages: [{ role: 'user', content: prompts[action] || selectedText }]
+      system: req.system,
+      messages: [{ role: 'user', content: req.user }]
     });
 
     const response = message.content[0].text.trim();
     const { input_tokens, output_tokens } = message.usage;
     const cost = await calculateCost(input_tokens, output_tokens);
-    
+
     await logTransaction(action, input_tokens, output_tokens, cost);
+    await logAITrace({
+      action, model,
+      sentText: req.user,
+      response,
+      inputTokens: input_tokens,
+      outputTokens: output_tokens,
+      cost
+    });
 
     return { success: true, response, inputTokens: input_tokens, outputTokens: output_tokens, cost };
   } catch (error) {
