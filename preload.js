@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openAITraceLog: () => ipcRenderer.invoke('open-ai-trace-log'),
   getAIConfig: () => ipcRenderer.invoke('get-ai-config'),
   saveAIConfig: (config) => ipcRenderer.invoke('save-ai-config', config),
+  getCostReport: () => ipcRenderer.invoke('get-cost-report'),
 
   // Estadísticas de capítulo
   calculateChapterStats: (folderPath) => ipcRenderer.invoke('calculate-chapter-stats', folderPath),
@@ -54,6 +55,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSaveFile: (callback) => ipcRenderer.on('save-file', callback),
   onShowUsageStats: (callback) => ipcRenderer.on('show-usage-stats', callback),
   onShowAIConfig: (callback) => ipcRenderer.on('show-ai-config', callback),
+  onShowCostReport: (callback) => ipcRenderer.on('show-cost-report', callback),
   onShowFindReplace: (callback) => ipcRenderer.on('show-find-replace', callback),
   onExportEpub: (callback) => ipcRenderer.on('export-epub', callback),
   onNewProject: (callback) => ipcRenderer.on('new-project', callback),
