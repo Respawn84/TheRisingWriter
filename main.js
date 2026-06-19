@@ -981,6 +981,16 @@ ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens })
   }
 });
 
+// Elimina marcadores markdown que los modelos locales añaden aunque se les prohíba.
+// Solo quita el formato (**/*/__ alrededor de palabras); no toca el contenido.
+function stripMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/gs, '$1')   // **negrita**
+    .replace(/__(.+?)__/gs, '$1')        // __negrita__
+    .replace(/\*(.+?)\*/gs, '$1')        // *cursiva*
+    .replace(/_(.+?)_/gs, '$1');         // _cursiva_
+}
+
 async function callOllama({ selectedText, action, config }) {
   const { ollamaUrl, ollamaModel, ollamaTemperature } = config;
   const baseUrl = ollamaUrl || 'http://localhost:11434';
@@ -1020,7 +1030,7 @@ async function callOllama({ selectedText, action, config }) {
   }
 
   const data = await res.json();
-  const response = (data.message?.content || '').trim();
+  const response = stripMarkdown((data.message?.content || '').trim());
 
   await logAITrace({
     action, model: ollamaModel,
