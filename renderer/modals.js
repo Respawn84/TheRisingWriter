@@ -62,25 +62,67 @@ async function loadStats() {
 }
 
 // === MODAL CONFIGURACIÓN IA ===
+function toggleProviderSections(provider) {
+  const isOllama = provider === 'ollama';
+  document.getElementById('section-claude').classList.toggle('hidden', isOllama);
+  document.getElementById('section-ollama').classList.toggle('hidden', !isOllama);
+}
+
 async function loadAIConfig() {
   const [config, pricing] = await Promise.all([
     window.electronAPI.getAIConfig(),
     window.electronAPI.getPricing()
   ]);
+
+  // Proveedor
+  const provider = config.provider || 'claude';
+  document.querySelector(`input[name="ai-provider"][value="${provider}"]`).checked = true;
+  toggleProviderSections(provider);
+
+  // Claude
   document.getElementById('input-api-key').value = config.apiKey || '';
   document.getElementById('input-admin-api-key').value = config.adminApiKey || '';
   document.getElementById('select-model').value = config.model;
   document.getElementById('input-spend-limit').value = config.spendLimit || '';
   document.getElementById('input-price-in').value = pricing.inputPrice;
   document.getElementById('input-price-out').value = pricing.outputPrice;
+
+  // Ollama
+  document.getElementById('input-ollama-url').value = config.ollamaUrl || 'http://localhost:11434';
+  document.getElementById('input-ollama-model').value = config.ollamaModel || 'qwen2.5:7b-instruct';
+  const temp = config.ollamaTemperature !== undefined ? config.ollamaTemperature : 0.2;
+  document.getElementById('input-ollama-temperature').value = temp;
+  document.getElementById('ollama-temp-display').textContent = parseFloat(temp).toFixed(2);
+
+  // Verificar estado de Ollama si es el proveedor activo
+  if (provider === 'ollama') updateOllamaStatus();
+}
+
+async function updateOllamaStatus() {
+  const statusEl = document.getElementById('ollama-status');
+  statusEl.textContent = 'Comprobando conexión…';
+  const result = await window.electronAPI.checkOllama();
+  if (result.available) {
+    const modelList = result.models.length ? result.models.join(', ') : 'ninguno detectado';
+    statusEl.textContent = `Ollama activo. Modelos disponibles: ${modelList}`;
+    statusEl.style.color = 'var(--success, #4ade80)';
+  } else {
+    statusEl.textContent = 'Ollama no detectado. Arráncalo con: ollama serve';
+    statusEl.style.color = 'var(--error, #ef4444)';
+  }
 }
 
 async function saveAIConfig() {
+  const provider = document.querySelector('input[name="ai-provider"]:checked')?.value || 'claude';
   const config = {
+    provider,
     apiKey: document.getElementById('input-api-key').value.trim(),
     adminApiKey: document.getElementById('input-admin-api-key').value.trim(),
     model: document.getElementById('select-model').value,
-    spendLimit: parseFloat(document.getElementById('input-spend-limit').value) || 0
+    spendLimit: parseFloat(document.getElementById('input-spend-limit').value) || 0,
+    ollamaUrl: document.getElementById('input-ollama-url').value.trim(),
+    ollamaModel: document.getElementById('input-ollama-model').value.trim(),
+    ollamaTemperature: parseFloat(document.getElementById('input-ollama-temperature').value)
   };
   const pricing = {
     inputPrice: parseFloat(document.getElementById('input-price-in').value),
@@ -95,6 +137,7 @@ async function saveAIConfig() {
   if (configResult.success && pricingResult.success) {
     closeModal('modal-ai-config');
     showNotification('Configuración de IA guardada ✓');
+    checkAIStatus();
   } else {
     const errorEl = document.getElementById('ai-config-error');
     errorEl.textContent = configResult.error || pricingResult.error || 'Error al guardar';
@@ -250,6 +293,19 @@ function setupModalListeners() {
   document.getElementById('btn-toggle-admin-api-key').addEventListener('click', () => {
     const input = document.getElementById('input-admin-api-key');
     input.type = input.type === 'password' ? 'text' : 'password';
+  });
+
+  // Toggle proveedor
+  document.querySelectorAll('input[name="ai-provider"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      toggleProviderSections(e.target.value);
+      if (e.target.value === 'ollama') updateOllamaStatus();
+    });
+  });
+
+  // Slider de temperatura — actualizar display en tiempo real
+  document.getElementById('input-ollama-temperature').addEventListener('input', (e) => {
+    document.getElementById('ollama-temp-display').textContent = parseFloat(e.target.value).toFixed(2);
   });
   
   // Folder modal

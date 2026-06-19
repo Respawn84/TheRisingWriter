@@ -666,7 +666,12 @@ async function readAIConfig() {
     // Clave Admin (sk-ant-admin...), necesaria para el endpoint de costes.
     adminApiKey: stored.adminApiKey || process.env.ANTHROPIC_ADMIN_KEY || '',
     // Límite de gasto mensual en USD. 0 = sin límite.
-    spendLimit: parseFloat(stored.spendLimit) || 0
+    spendLimit: parseFloat(stored.spendLimit) || 0,
+    // Proveedor: 'claude' (API Anthropic) u 'ollama' (local).
+    provider: stored.provider || 'claude',
+    ollamaUrl: stored.ollamaUrl || 'http://localhost:11434',
+    ollamaModel: stored.ollamaModel || 'qwen2.5:7b-instruct',
+    ollamaTemperature: stored.ollamaTemperature !== undefined ? parseFloat(stored.ollamaTemperature) : 0.2
   };
 }
 const PROPERTIES_FILE = path.join(
@@ -683,7 +688,7 @@ ipcMain.handle('get-ai-config', async () => {
   return await readAIConfig();
 });
 
-ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spendLimit }) => {
+ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spendLimit, provider, ollamaUrl, ollamaModel, ollamaTemperature }) => {
   try {
     await fs.writeFile(
       AI_CONFIG_FILE,
@@ -691,7 +696,11 @@ ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spe
         apiKey: apiKey || '',
         model: model || DEFAULT_MODEL,
         adminApiKey: adminApiKey || '',
-        spendLimit: parseFloat(spendLimit) || 0
+        spendLimit: parseFloat(spendLimit) || 0,
+        provider: provider || 'claude',
+        ollamaUrl: ollamaUrl || 'http://localhost:11434',
+        ollamaModel: ollamaModel || 'qwen2.5:7b-instruct',
+        ollamaTemperature: ollamaTemperature !== undefined ? parseFloat(ollamaTemperature) : 0.2
       }, null, 2)
     );
     return { success: true };
@@ -881,9 +890,46 @@ ipcMain.handle('open-ai-trace-log', async () => {
   }
 });
 
+// System prompts compartidos entre Claude y Ollama.
+const AI_SYSTEM_PROMPTS = (selectedText) => ({
+  corregir: {
+    system: 'Eres un corrector ortotipográfico de textos literarios en español. ' +
+      'Corrige ÚNICAMENTE ortografía, acentuación, puntuación y tipografía ' +
+      '(comillas, rayas de diálogo, espacios, guiones). NO cambies palabras, ' +
+      'vocabulario, estilo ni estructura. Tu respuesta debe contener EXCLUSIVAMENTE ' +
+      'el texto corregido: sin comentarios, sin explicaciones, sin preámbulos y sin ' +
+      'comillas que lo envuelvan. Si el texto no contiene ningún error, devuélvelo ' +
+      'exactamente igual, carácter por carácter.',
+    user: selectedText
+  },
+  sinonimos: {
+    system: 'Eres un diccionario de sinónimos en español. Responde solo con una lista ' +
+      'numerada de 5 sinónimos, sin explicaciones ni texto adicional.',
+    user: `Palabra o expresión: "${selectedText}"`
+  },
+  mejorar: {
+    system: 'Eres un editor literario. Mejora el texto del usuario manteniendo su estilo, ' +
+      'voz y significado. Responde EXCLUSIVAMENTE con el texto mejorado, sin comentarios ' +
+      'ni preámbulos.',
+    user: selectedText
+  },
+  expandir: {
+    system: 'Eres un escritor que amplía textos con más detalle, manteniendo el estilo y la ' +
+      'coherencia. Responde EXCLUSIVAMENTE con el texto expandido, sin comentarios ni preámbulos.',
+    user: selectedText
+  }
+});
+
 ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens }) => {
   try {
-    const { apiKey, model, spendLimit } = await readAIConfig();
+    const config = await readAIConfig();
+
+    if (config.provider === 'ollama') {
+      return await callOllama({ selectedText, action, config });
+    }
+
+    // === Proveedor Claude ===
+    const { apiKey, model, spendLimit } = config;
     if (!apiKey) {
       return { success: false, error: 'API Key no configurada. Ábrela en IA → Configuración.' };
     }
@@ -903,40 +949,7 @@ ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens })
     const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic({ apiKey });
 
-    // Cada acción define un system prompt (reglas de comportamiento) y el
-    // contenido del turno user. Mantener las reglas en el system evita que el
-    // modelo responda de forma conversacional (p. ej. "El texto no necesita
-    // corrección") en lugar de devolver el texto.
-    const requests = {
-      corregir: {
-        system: 'Eres un corrector ortotipográfico de textos literarios en español. ' +
-          'Corrige ÚNICAMENTE ortografía, acentuación, puntuación y tipografía ' +
-          '(comillas, rayas de diálogo, espacios, guiones). NO cambies palabras, ' +
-          'vocabulario, estilo ni estructura. Tu respuesta debe contener EXCLUSIVAMENTE ' +
-          'el texto corregido: sin comentarios, sin explicaciones, sin preámbulos y sin ' +
-          'comillas que lo envuelvan. Si el texto no contiene ningún error, devuélvelo ' +
-          'exactamente igual, carácter por carácter.',
-        user: selectedText
-      },
-      sinonimos: {
-        system: 'Eres un diccionario de sinónimos en español. Responde solo con una lista ' +
-          'numerada de 5 sinónimos, sin explicaciones ni texto adicional.',
-        user: `Palabra o expresión: "${selectedText}"`
-      },
-      mejorar: {
-        system: 'Eres un editor literario. Mejora el texto del usuario manteniendo su estilo, ' +
-          'voz y significado. Responde EXCLUSIVAMENTE con el texto mejorado, sin comentarios ' +
-          'ni preámbulos.',
-        user: selectedText
-      },
-      expandir: {
-        system: 'Eres un escritor que amplía textos con más detalle, manteniendo el estilo y la ' +
-          'coherencia. Responde EXCLUSIVAMENTE con el texto expandido, sin comentarios ni preámbulos.',
-        user: selectedText
-      }
-    };
-
-    const req = requests[action] || { system: undefined, user: selectedText };
+    const req = (AI_SYSTEM_PROMPTS(selectedText))[action] || { system: undefined, user: selectedText };
 
     const message = await client.messages.create({
       model,
@@ -963,6 +976,80 @@ ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens })
   } catch (error) {
     console.error('Error Claude:', error);
     return { success: false, error: error.message };
+  }
+});
+
+async function callOllama({ selectedText, action, config }) {
+  const { ollamaUrl, ollamaModel, ollamaTemperature } = config;
+  const baseUrl = ollamaUrl || 'http://localhost:11434';
+
+  // Ping de disponibilidad antes de la llamada real.
+  try {
+    const ping = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+    if (!ping.ok) throw new Error('ping failed');
+  } catch {
+    return {
+      success: false,
+      error: `Ollama no responde en ${baseUrl}. Arráncalo con: ollama serve`
+    };
+  }
+
+  const req = (AI_SYSTEM_PROMPTS(selectedText))[action] || { system: undefined, user: selectedText };
+
+  const messages = [];
+  if (req.system) messages.push({ role: 'system', content: req.system });
+  messages.push({ role: 'user', content: req.user });
+
+  const res = await fetch(`${baseUrl}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: ollamaModel,
+      messages,
+      stream: false,
+      options: { temperature: ollamaTemperature !== undefined ? ollamaTemperature : 0.2 }
+    }),
+    signal: AbortSignal.timeout(120000)
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    return { success: false, error: `Ollama error ${res.status}: ${body}` };
+  }
+
+  const data = await res.json();
+  const response = (data.message?.content || '').trim();
+
+  await logAITrace({
+    action, model: ollamaModel,
+    sentText: req.user,
+    response,
+    inputTokens: data.prompt_eval_count || 0,
+    outputTokens: data.eval_count || 0,
+    cost: 0
+  });
+
+  return {
+    success: true,
+    response,
+    inputTokens: data.prompt_eval_count || 0,
+    outputTokens: data.eval_count || 0,
+    cost: 0
+  };
+}
+
+// Handler para verificar disponibilidad de Ollama desde el renderer.
+ipcMain.handle('check-ollama', async () => {
+  const { ollamaUrl } = await readAIConfig();
+  const baseUrl = ollamaUrl || 'http://localhost:11434';
+  try {
+    const res = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return { available: false };
+    const data = await res.json();
+    const models = (data.models || []).map(m => m.name);
+    return { available: true, models };
+  } catch {
+    return { available: false };
   }
 });
 
