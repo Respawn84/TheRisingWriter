@@ -899,7 +899,9 @@ const AI_SYSTEM_PROMPTS = (selectedText) => ({
       'vocabulario, estilo ni estructura. Tu respuesta debe contener EXCLUSIVAMENTE ' +
       'el texto corregido: sin comentarios, sin explicaciones, sin preámbulos y sin ' +
       'comillas que lo envuelvan. Si el texto no contiene ningún error, devuélvelo ' +
-      'exactamente igual, carácter por carácter.',
+      'exactamente igual, carácter por carácter. ' +
+      'PROHIBIDO usar asteriscos, guiones bajos, markdown ni ningún marcador para señalar cambios. ' +
+      'Devuelve texto plano, sin formato adicional de ningún tipo.',
     user: selectedText
   },
   sinonimos: {
