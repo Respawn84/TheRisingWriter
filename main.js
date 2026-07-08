@@ -136,6 +136,10 @@ function createMenu() {
           click: () => mainWindow.webContents.send('show-ai-config')
         },
         {
+          label: 'Prompts...',
+          click: () => mainWindow.webContents.send('show-prompts-config')
+        },
+        {
           label: 'Estadísticas...',
           accelerator: 'CmdOrCtrl+Shift+U',
           click: () => mainWindow.webContents.send('show-usage-stats')
@@ -648,8 +652,46 @@ const PRICING_FILE = path.join(app.getPath('userData'), 'pricing.json');
 const LOG_FILE = path.join(app.getPath('userData'), 'usage.log');
 const TRACE_LOG_FILE = path.join(app.getPath('userData'), 'ai-trace.log');
 const AI_CONFIG_FILE = path.join(app.getPath('userData'), 'ai-config.json');
+const PROMPTS_CONFIG_FILE = path.join(app.getPath('userData'), 'prompts-config.json');
 
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+
+// System prompts por defecto de cada acción de IA. Se usan si el usuario no
+// ha guardado los suyos propios en PROMPTS_CONFIG_FILE (editable desde
+// IA → Prompts...). Distintos modelos responden distinto a las mismas
+// instrucciones, de ahí que sean personalizables por el usuario.
+const DEFAULT_PROMPTS = {
+  corregir: 'Eres un corrector ortotipográfico de textos literarios en español. ' +
+    'Corrige ÚNICAMENTE ortografía, acentuación, puntuación y tipografía ' +
+    '(comillas, rayas de diálogo, espacios, guiones). NO cambies palabras, ' +
+    'vocabulario, estilo ni estructura. Tu respuesta debe contener EXCLUSIVAMENTE ' +
+    'el texto corregido: sin comentarios, sin explicaciones, sin preámbulos y sin ' +
+    'comillas que lo envuelvan. Si el texto no contiene ningún error, devuélvelo ' +
+    'exactamente igual, carácter por carácter.',
+  sinonimos: 'Eres un diccionario de sinónimos en español. Responde solo con una lista ' +
+    'numerada de 5 sinónimos, sin explicaciones ni texto adicional.',
+  mejorar: 'Eres un editor literario. Mejora el texto del usuario manteniendo su estilo, ' +
+    'voz y significado. Responde EXCLUSIVAMENTE con el texto mejorado, sin comentarios ' +
+    'ni preámbulos.',
+  expandir: 'Eres un escritor que amplía textos con más detalle, manteniendo el estilo y la ' +
+    'coherencia. Responde EXCLUSIVAMENTE con el texto expandido, sin comentarios ni preámbulos.'
+};
+
+// Lee los prompts de IA. Para cada acción, usa el valor guardado por el
+// usuario si existe y no está vacío; si no, cae al valor por defecto.
+async function readPromptsConfig() {
+  let stored = {};
+  try {
+    stored = JSON.parse(await fs.readFile(PROMPTS_CONFIG_FILE, 'utf-8'));
+  } catch {
+    stored = {};
+  }
+  const prompts = {};
+  for (const action of Object.keys(DEFAULT_PROMPTS)) {
+    prompts[action] = (stored[action] && stored[action].trim()) || DEFAULT_PROMPTS[action];
+  }
+  return prompts;
+}
 
 // Lee la configuración de IA (clave + modelo). La clave del fichero tiene
 // prioridad; si no existe, se usa la variable de entorno ANTHROPIC_API_KEY.
@@ -694,6 +736,25 @@ ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spe
         spendLimit: parseFloat(spendLimit) || 0
       }, null, 2)
     );
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Devuelve tanto los prompts activos (guardados o por defecto) como los
+// valores por defecto, para que el modal pueda ofrecer "Restaurar por defecto".
+ipcMain.handle('get-prompts-config', async () => {
+  return { prompts: await readPromptsConfig(), defaults: DEFAULT_PROMPTS };
+});
+
+ipcMain.handle('save-prompts-config', async (event, prompts) => {
+  try {
+    const toSave = {};
+    for (const action of Object.keys(DEFAULT_PROMPTS)) {
+      toSave[action] = (prompts && prompts[action]) || '';
+    }
+    await fs.writeFile(PROMPTS_CONFIG_FILE, JSON.stringify(toSave, null, 2));
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -906,32 +967,24 @@ ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens })
     // Cada acción define un system prompt (reglas de comportamiento) y el
     // contenido del turno user. Mantener las reglas en el system evita que el
     // modelo responda de forma conversacional (p. ej. "El texto no necesita
-    // corrección") en lugar de devolver el texto.
+    // corrección") en lugar de devolver el texto. Los system prompts son
+    // configurables por el usuario en IA → Prompts...
+    const prompts = await readPromptsConfig();
     const requests = {
       corregir: {
-        system: 'Eres un corrector ortotipográfico de textos literarios en español. ' +
-          'Corrige ÚNICAMENTE ortografía, acentuación, puntuación y tipografía ' +
-          '(comillas, rayas de diálogo, espacios, guiones). NO cambies palabras, ' +
-          'vocabulario, estilo ni estructura. Tu respuesta debe contener EXCLUSIVAMENTE ' +
-          'el texto corregido: sin comentarios, sin explicaciones, sin preámbulos y sin ' +
-          'comillas que lo envuelvan. Si el texto no contiene ningún error, devuélvelo ' +
-          'exactamente igual, carácter por carácter.',
+        system: prompts.corregir,
         user: selectedText
       },
       sinonimos: {
-        system: 'Eres un diccionario de sinónimos en español. Responde solo con una lista ' +
-          'numerada de 5 sinónimos, sin explicaciones ni texto adicional.',
+        system: prompts.sinonimos,
         user: `Palabra o expresión: "${selectedText}"`
       },
       mejorar: {
-        system: 'Eres un editor literario. Mejora el texto del usuario manteniendo su estilo, ' +
-          'voz y significado. Responde EXCLUSIVAMENTE con el texto mejorado, sin comentarios ' +
-          'ni preámbulos.',
+        system: prompts.mejorar,
         user: selectedText
       },
       expandir: {
-        system: 'Eres un escritor que amplía textos con más detalle, manteniendo el estilo y la ' +
-          'coherencia. Responde EXCLUSIVAMENTE con el texto expandido, sin comentarios ni preámbulos.',
+        system: prompts.expandir,
         user: selectedText
       }
     };

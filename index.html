@@ -578,6 +578,49 @@
     </div>
   </div>
 
+  <div id="modal-prompts-config" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>🧠 Prompts de IA</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body prompts-config-body">
+        <p class="field-hint">Instrucciones (system prompt) que recibe el modelo para cada acción. Ajusta el texto si el modelo hace más cambios de los que debería (p. ej. "Revisar Escena" usa el prompt de Corregir).</p>
+
+        <div class="prompt-field">
+          <label>Corregir (usado también por «Revisar Escena»):</label>
+          <textarea id="input-prompt-corregir" class="modal-input" rows="6"></textarea>
+          <button type="button" class="btn-secondary btn-reset-prompt" data-action="corregir">↺ Restaurar por defecto</button>
+        </div>
+
+        <div class="prompt-field">
+          <label>Sinónimos:</label>
+          <textarea id="input-prompt-sinonimos" class="modal-input" rows="3"></textarea>
+          <button type="button" class="btn-secondary btn-reset-prompt" data-action="sinonimos">↺ Restaurar por defecto</button>
+        </div>
+
+        <div class="prompt-field">
+          <label>Mejorar:</label>
+          <textarea id="input-prompt-mejorar" class="modal-input" rows="4"></textarea>
+          <button type="button" class="btn-secondary btn-reset-prompt" data-action="mejorar">↺ Restaurar por defecto</button>
+        </div>
+
+        <div class="prompt-field">
+          <label>Expandir:</label>
+          <textarea id="input-prompt-expandir" class="modal-input" rows="4"></textarea>
+          <button type="button" class="btn-secondary btn-reset-prompt" data-action="expandir">↺ Restaurar por defecto</button>
+        </div>
+
+        <div id="prompts-config-error" class="error hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-save-prompts-config" class="btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-cost-report" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content modal-large">
@@ -950,6 +993,7 @@
   <script src="renderer/tramaTimeline.js"></script>
   <script src="renderer/genealogy.js"></script>
   <script src="renderer/appSettings.js"></script>
+  <script src="renderer/promptsConfig.js"></script>
   <script src="renderer/app.js"></script>
 </body>
 </html>

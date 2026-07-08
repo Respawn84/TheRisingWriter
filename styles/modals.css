@@ -253,6 +253,25 @@
   gap: 8px;
 }
 
+/* PROMPTS DE IA */
+.prompts-config-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.prompt-field {
+  margin-bottom: 18px;
+}
+
+.prompt-field textarea {
+  font-family: inherit;
+  resize: vertical;
+}
+
+.prompt-field .btn-reset-prompt {
+  margin-top: -6px;
+}
+
 /* MENSAJES */
 .error {
   color: var(--danger);

@@ -7,6 +7,7 @@ function openModal(modalId) {
   
   if (modalId === 'modal-stats') loadStats();
   if (modalId === 'modal-ai-config') loadAIConfig();
+  if (modalId === 'modal-prompts-config') preparePromptsConfigModal();
   if (modalId === 'modal-cost-report') loadCostReport();
   if (modalId === 'modal-rename') prepareRenameModal();
   if (modalId === 'modal-delete') prepareDeleteModal();

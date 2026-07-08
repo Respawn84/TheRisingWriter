@@ -68,6 +68,7 @@ function setupAllListeners() {
   setupTramaTimelineListeners();
   setupGenealogyListeners();
   setupAppSettingsListeners();
+  setupPromptsConfigListeners();
 }
 
 // Cargar al iniciar
