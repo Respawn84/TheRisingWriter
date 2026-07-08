@@ -228,6 +228,36 @@
   margin-bottom: 12px;
 }
 
+/* PROVIDER TOGGLE */
+.provider-toggle {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.provider-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.provider-option input[type="radio"] {
+  accent-color: var(--accent, #197819);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Slider de temperatura */
+#input-ollama-temperature {
+  padding: 4px 0;
+  cursor: pointer;
+  accent-color: var(--accent, #197819);
+}
+
 /* API KEY ROW */
 .api-key-row {
   display: flex;

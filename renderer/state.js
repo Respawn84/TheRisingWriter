@@ -24,23 +24,38 @@ const state = {
   projectMode : "folder"      // "folder" o "json"
  };
 
-// Verificación del estado de IA
+// Verificación del estado de IA (consciente del proveedor activo)
 async function checkAIStatus() {
-  const key = await window.electronAPI.getApiKey();
-  state.aiConnected = !!key;
-  updateAIStatus();
+  const config = await window.electronAPI.getAIConfig();
+  const dot = document.getElementById('ai-dot');
+  const text = document.getElementById('ai-text');
+  dot.classList.remove('connected', 'error');
+
+  if (config.provider === 'ollama') {
+    const result = await window.electronAPI.checkOllama();
+    state.aiConnected = result.available;
+    if (result.available) {
+      dot.classList.add('connected');
+      text.textContent = `IA: Ollama (${config.ollamaModel || 'local'})`;
+    } else {
+      dot.classList.add('error');
+      text.textContent = 'IA: Ollama no activo';
+    }
+  } else {
+    const key = await window.electronAPI.getApiKey();
+    state.aiConnected = !!key;
+    if (state.aiConnected) {
+      dot.classList.add('connected');
+      text.textContent = 'IA: Claude';
+    } else {
+      dot.classList.add('error');
+      text.textContent = 'IA: No configurada';
+    }
+  }
 }
 
 function updateAIStatus() {
-  const dot = document.getElementById('ai-dot');
-  const text = document.getElementById('ai-text');
-  if (state.aiConnected) {
-    dot.classList.add('connected');
-    text.textContent = 'IA: Conectada';
-  } else {
-    dot.classList.add('error');
-    text.textContent = 'IA: No configurada';
-  }
+  checkAIStatus();
 }
 
 // Marcador de cambios sin guardar

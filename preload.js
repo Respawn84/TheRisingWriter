@@ -23,9 +23,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   unmarkDirectory: (jsonPath, dirPath) => ipcRenderer.invoke('unmark-directory', jsonPath, dirPath),
   getDirectoryType: (jsonPath, dirPath) => ipcRenderer.invoke('get-directory-type', jsonPath, dirPath),
   
-  // Claude AI
+  // Claude AI / Ollama
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
   callClaude: (params) => ipcRenderer.invoke('call-claude', params),
+  checkOllama: () => ipcRenderer.invoke('check-ollama'),
   
   // Pricing y stats
   getPricing: () => ipcRenderer.invoke('get-pricing'),

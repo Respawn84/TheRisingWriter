@@ -5,6 +5,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Electron](https://img.shields.io/badge/Electron-33.2.0-47848F?logo=electron)
 ![Claude AI](https://img.shields.io/badge/Claude_AI-Sonnet_4-6366f1)
+![Ollama](https://img.shields.io/badge/Ollama-local%20AI-black)
 ![Status](https://img.shields.io/badge/status-active_development-success)
 
 **El editor de escritura creativa que siempre quisiste tener — gratis, potente y con IA integrada.**
@@ -24,7 +25,7 @@
 - ✨ Escribe sin ruido visual, con todo a mano cuando lo necesitas
 - 🗺️ Visualiza el **mapa mental** de tus capítulos, escenas y personajes
 - 📊 Controla la **temporalidad de tus tramas** en una sola vista
-- 🤖 Pide ayuda a Claude cuando te quedes atascado
+- 🤖 Pide ayuda a la IA cuando te quedes atascado — **Claude o Ollama en local**
 - 💸 100% gratuito. Sin suscripciones. Sin sorpresas.
 
 ---
@@ -104,7 +105,7 @@ Al abrir cualquier fichero de trama el panel aparece automáticamente:
 - **Exportar a Word (.docx)** cualquier capítulo con un clic
 - **Exportar a EPUB** con estructura de libro completa y metadatos del proyecto
 
-### 🤖 Asistente de IA con Claude
+### 🤖 Asistente de IA — Claude o Ollama en local
 
 Selecciona texto, clic derecho y elige tu acción:
 
@@ -115,11 +116,23 @@ Selecciona texto, clic derecho y elige tu acción:
 
 El panel flotante de sugerencias no interrumpe tu escritura. Aplica, ignora o copia — tú decides.
 
+Puedes elegir entre dos proveedores desde **IA → Configuración**:
+
+| | Claude (API Anthropic) | Ollama (local) |
+|---|---|---|
+| Coste | Pago por uso (céntimos) | **Gratis** |
+| Calidad | Alta | Buena (depende del modelo) |
+| Privacidad | Texto enviado a la nube | Todo en tu máquina |
+| Requiere internet | Sí | No |
+
+> Usa Ollama para el trabajo del día a día y Claude cuando necesites más calidad en una tarea concreta. [Guía de configuración de Ollama →](OLLAMA_SETUP.md)
+
 ### 💰 Control de Costes de API
 
-- **Tracking automático** de tokens y costes en cada llamada
+- **Tracking automático** de tokens y costes en cada llamada (Claude)
 - **Estadísticas acumuladas** con log completo de transacciones
 - **Precios personalizables** para adaptarte a tu plan de API
+- Con Ollama el coste es siempre **$0.00** — se registra igualmente para comparativas
 
 ---
 
@@ -128,7 +141,7 @@ El panel flotante de sugerencias no interrumpe tu escritura. Aplica, ignora o co
 ### Requisitos
 
 - **Node.js** 18+ ([descargar aquí](https://nodejs.org/))
-- **Una API key de Anthropic** ([obtenerla aquí](https://console.anthropic.com/))
+- **Una API key de Anthropic** ([obtenerla aquí](https://console.anthropic.com/)) — *opcional si usas Ollama*
 
 ### Pasos
 
@@ -140,8 +153,12 @@ cd TheRisingWriter
 # 2. Instala dependencias
 npm install
 
-# 3. Configura tu API key
+# 3a. Si usas Claude: configura tu API key
 echo "ANTHROPIC_API_KEY=tu_clave_aquí" > .env
+
+# 3b. Si usas Ollama: instálalo y descarga un modelo (sin coste)
+# Ver guía completa en OLLAMA_SETUP.md
+ollama pull qwen2.5:3b-instruct
 
 # 4. ¡Arranca!
 npm start
@@ -190,6 +207,7 @@ npm run dev
 
 - **[Electron](https://www.electronjs.org/)** 33.2.0 — App de escritorio multiplataforma
 - **[@anthropic-ai/sdk](https://www.npmjs.com/package/@anthropic-ai/sdk)** — Integración oficial con Claude
+- **[Ollama](https://ollama.com/)** — Modelos de IA en local (Qwen 2.5 y otros)
 - **[marked](https://marked.js.org/)** — Renderizado de Markdown en el split
 - **Vanilla JavaScript + SVG** — Sin frameworks, ligero y rápido
 
@@ -274,6 +292,7 @@ renderer/
 - [x] Estadísticas de palabras por capítulo
 - [x] **🗺️ Mapa mental** de capítulos, escenas y personajes (SVG interactivo con pan/zoom)
 - [x] **📊 Línea temporal de tramas** en orden de lectura (segmentos verticales con pan/zoom)
+- [x] **🤖 Ollama local** como proveedor de IA gratuito y offline (Qwen 2.5, temperatura configurable)
 
 ### 🔮 En el horizonte
 
@@ -315,14 +334,28 @@ renderer/
 
 ## 🤖 Sobre la IA
 
-Este proyecto usa **Claude Sonnet 4** de Anthropic. La integración está diseñada para:
+The Rising Writer soporta dos proveedores, seleccionables desde **IA → Configuración**:
+
+### Claude (Anthropic)
+
+El modelo por defecto. Usa **Claude Sonnet 4** con acceso a la API de Anthropic. La integración está diseñada para:
 
 - **Respetar tu voz**: las sugerencias se adaptan a tu estilo
 - **Ser contextual**: entiende qué tipo de texto estás escribiendo
 - **Minimizar costes**: solo los tokens necesarios, nada más
 - **Ser transparente**: tracking completo de uso y costes
 
-> **Nota sobre costes**: Necesitas tu propia API key de Anthropic. Típicamente, usar la IA en un capítulo completo cuesta céntimos — muy lejos de las suscripciones de las herramientas comerciales.
+> Necesitas tu propia API key de Anthropic. Típicamente, usar la IA en un capítulo completo cuesta céntimos — muy lejos de las suscripciones de las herramientas comerciales.
+
+### Ollama (local)
+
+Ejecuta modelos de IA directamente en tu máquina. **Gratis, sin conexión y sin límites**.
+
+- Modelo recomendado: `qwen2.5:3b-instruct` (equilibrio entre calidad y velocidad)
+- Compatible con cualquier modelo disponible en `ollama list`
+- Temperatura configurable: baja (0.2) para corrección, más alta para creatividad
+
+> [Guía completa de configuración →](OLLAMA_SETUP.md)
 
 ---
 
