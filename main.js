@@ -715,7 +715,10 @@ async function readAIConfig() {
     provider: stored.provider || 'claude',
     ollamaUrl: stored.ollamaUrl || 'http://localhost:11434',
     ollamaModel: stored.ollamaModel || 'qwen2.5:7b-instruct',
-    ollamaTemperature: stored.ollamaTemperature !== undefined ? parseFloat(stored.ollamaTemperature) : 0.2
+    ollamaTemperature: stored.ollamaTemperature !== undefined ? parseFloat(stored.ollamaTemperature) : 0.2,
+    // Timeout de la petición de chat a Ollama, en segundos. Modelos más grandes
+    // (7B, 14B...) pueden tardar más de los 120s por defecto en máquinas modestas.
+    ollamaTimeout: stored.ollamaTimeout !== undefined ? parseInt(stored.ollamaTimeout, 10) : 120
   };
 }
 const PROPERTIES_FILE = path.join(
@@ -732,7 +735,7 @@ ipcMain.handle('get-ai-config', async () => {
   return await readAIConfig();
 });
 
-ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spendLimit, provider, ollamaUrl, ollamaModel, ollamaTemperature }) => {
+ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spendLimit, provider, ollamaUrl, ollamaModel, ollamaTemperature, ollamaTimeout }) => {
   try {
     await fs.writeFile(
       AI_CONFIG_FILE,
@@ -744,7 +747,8 @@ ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spe
         provider: provider || 'claude',
         ollamaUrl: ollamaUrl || 'http://localhost:11434',
         ollamaModel: ollamaModel || 'qwen2.5:7b-instruct',
-        ollamaTemperature: ollamaTemperature !== undefined ? parseFloat(ollamaTemperature) : 0.2
+        ollamaTemperature: ollamaTemperature !== undefined ? parseFloat(ollamaTemperature) : 0.2,
+        ollamaTimeout: ollamaTimeout !== undefined ? parseInt(ollamaTimeout, 10) : 120
       }, null, 2)
     );
     return { success: true };
@@ -1050,8 +1054,9 @@ function stripMarkdown(text) {
 }
 
 async function callOllama({ selectedText, action, config, prompts }) {
-  const { ollamaUrl, ollamaModel, ollamaTemperature } = config;
+  const { ollamaUrl, ollamaModel, ollamaTemperature, ollamaTimeout } = config;
   const baseUrl = ollamaUrl || 'http://localhost:11434';
+  const timeoutMs = (ollamaTimeout !== undefined ? ollamaTimeout : 120) * 1000;
 
   // Ping de disponibilidad antes de la llamada real.
   try {
@@ -1070,17 +1075,29 @@ async function callOllama({ selectedText, action, config, prompts }) {
   if (req.system) messages.push({ role: 'system', content: req.system });
   messages.push({ role: 'user', content: req.user });
 
-  const res = await fetch(`${baseUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: ollamaModel,
-      messages,
-      stream: false,
-      options: { temperature: ollamaTemperature !== undefined ? ollamaTemperature : 0.2 }
-    }),
-    signal: AbortSignal.timeout(120000)
-  });
+  let res;
+  try {
+    res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: ollamaModel,
+        messages,
+        stream: false,
+        options: { temperature: ollamaTemperature !== undefined ? ollamaTemperature : 0.2 }
+      }),
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      return {
+        success: false,
+        error: `Ollama no respondió en ${ollamaTimeout || 120}s. El modelo «${ollamaModel}» puede necesitar más tiempo: ` +
+          `sube el timeout en IA → Configuración.`
+      };
+    }
+    throw error;
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');

@@ -23,18 +23,25 @@ async function reviewScene() {
 
   // Preparar el modal en estado "cargando".
   const loading = document.getElementById('scene-review-loading');
+  const loadingText = loading.querySelector('p');
   const errorEl = document.getElementById('scene-review-error');
   const content = document.getElementById('scene-review-content');
+  loadingText.textContent = 'Revisando la escena...';
   loading.classList.remove('hidden');
   errorEl.classList.add('hidden');
   content.classList.add('hidden');
   openModal('modal-scene-review');
 
-  const result = await window.electronAPI.callClaude({
-    selectedText: original,
-    action: 'corregir',
-    maxTokens: 8000
-  });
+  // Con Ollama, los modelos pequeños/locales pierden fidelidad si reciben la
+  // escena entera (demasiadas normas que recordar sobre demasiado texto).
+  // Se corrige línea a línea para que cada petición sea un texto corto que el
+  // modelo no pueda reestructurar, resumir ni recortar. Con Claude se manda la
+  // escena entera como siempre: no tiene ese problema y trocear multiplicaría
+  // el coste (el system prompt se reenviaría en cada línea).
+  const { provider } = await window.electronAPI.getAIConfig();
+  const result = provider === 'ollama'
+    ? await correctSceneByLine(original, loadingText)
+    : await window.electronAPI.callClaude({ selectedText: original, action: 'corregir', maxTokens: 8000 });
 
   loading.classList.add('hidden');
 
@@ -51,6 +58,37 @@ async function reviewScene() {
   renderDiff(ops);
   document.getElementById('scene-review-result').value = corrected;
   content.classList.remove('hidden');
+}
+
+// Corrige el texto línea a línea (una petición por línea no vacía) y
+// reconstruye el resultado conservando las líneas en blanco tal cual.
+async function correctSceneByLine(original, loadingText) {
+  const lines = original.split('\n');
+  const correctedLines = new Array(lines.length);
+  const toCorrect = lines.reduce((n, l) => n + (l.trim() ? 1 : 0), 0);
+  let done = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) {
+      correctedLines[i] = line;
+      continue;
+    }
+
+    done++;
+    loadingText.textContent = `Revisando línea ${done}/${toCorrect}...`;
+
+    const result = await window.electronAPI.callClaude({
+      selectedText: line,
+      action: 'corregir',
+      maxTokens: 500
+    });
+
+    if (!result.success) return result;
+    correctedLines[i] = result.response;
+  }
+
+  return { success: true, response: correctedLines.join('\n') };
 }
 
 // Diff por palabras (LCS). Devuelve ops {type:'equal'|'removed'|'added', text}.
@@ -157,6 +195,7 @@ function setupSceneReviewListeners() {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     reviewScene,
+    correctSceneByLine,
     computeWordDiff,
     renderDiff,
     applySceneReview,

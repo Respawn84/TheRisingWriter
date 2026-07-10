@@ -94,6 +94,7 @@ async function loadAIConfig() {
   const temp = config.ollamaTemperature !== undefined ? config.ollamaTemperature : 0.2;
   document.getElementById('input-ollama-temperature').value = temp;
   document.getElementById('ollama-temp-display').textContent = parseFloat(temp).toFixed(2);
+  document.getElementById('input-ollama-timeout').value = config.ollamaTimeout !== undefined ? config.ollamaTimeout : 120;
 
   // Verificar estado de Ollama si es el proveedor activo
   if (provider === 'ollama') updateOllamaStatus();
@@ -123,7 +124,8 @@ async function saveAIConfig() {
     spendLimit: parseFloat(document.getElementById('input-spend-limit').value) || 0,
     ollamaUrl: document.getElementById('input-ollama-url').value.trim(),
     ollamaModel: document.getElementById('input-ollama-model').value.trim(),
-    ollamaTemperature: parseFloat(document.getElementById('input-ollama-temperature').value)
+    ollamaTemperature: parseFloat(document.getElementById('input-ollama-temperature').value),
+    ollamaTimeout: parseInt(document.getElementById('input-ollama-timeout').value, 10) || 120
   };
   const pricing = {
     inputPrice: parseFloat(document.getElementById('input-price-in').value),

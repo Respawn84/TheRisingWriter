@@ -597,6 +597,10 @@
           <input type="range" id="input-ollama-temperature" class="modal-input" min="0" max="1" step="0.05" value="0.2">
           <p class="field-hint">0 = respuestas muy deterministas (recomendado para corrección). 1 = máxima creatividad.</p>
 
+          <label>Timeout de conexión (segundos):</label>
+          <input type="number" id="input-ollama-timeout" class="modal-input" min="10" step="10" value="120">
+          <p class="field-hint">Tiempo máximo de espera por la respuesta del modelo. Modelos más grandes (7B, 14B...) pueden necesitar más de 120s.</p>
+
           <div id="ollama-status" class="field-hint"></div>
         </div>
 
