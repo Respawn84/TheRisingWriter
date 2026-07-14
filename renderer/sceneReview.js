@@ -33,14 +33,16 @@ async function reviewScene() {
   openModal('modal-scene-review');
 
   // Con Ollama, los modelos pequeños/locales pierden fidelidad si reciben la
-  // escena entera (demasiadas normas que recordar sobre demasiado texto).
-  // Se corrige línea a línea para que cada petición sea un texto corto que el
-  // modelo no pueda reestructurar, resumir ni recortar. Con Claude se manda la
-  // escena entera como siempre: no tiene ese problema y trocear multiplicaría
-  // el coste (el system prompt se reenviaría en cada línea).
+  // escena entera (demasiadas normas que recordar sobre demasiado texto). Se
+  // corrige por lotes de líneas: cada petición es un fragmento corto que el
+  // modelo no puede reestructurar a lo grande, pero conserva líneas vecinas
+  // como contexto para distinguir diálogo («—») de pensamiento («« »»), algo
+  // que se perdía corrigiendo línea a línea de forma aislada. Con Claude se
+  // manda la escena entera como siempre: no tiene ese problema y trocear
+  // multiplicaría el coste (el system prompt se reenviaría en cada lote).
   const { provider } = await window.electronAPI.getAIConfig();
   const result = provider === 'ollama'
-    ? await correctSceneByLine(original, loadingText)
+    ? await correctSceneInBatches(original, loadingText)
     : await window.electronAPI.callClaude({ selectedText: original, action: 'corregir', maxTokens: 8000 });
 
   loading.classList.add('hidden');
@@ -60,32 +62,48 @@ async function reviewScene() {
   content.classList.remove('hidden');
 }
 
-// Corrige el texto línea a línea (una petición por línea no vacía) y
-// reconstruye el resultado conservando las líneas en blanco tal cual.
-async function correctSceneByLine(original, loadingText) {
+// Tamaño del lote de líneas enviado a Ollama en cada petición. Un compromiso
+// entre darle al modelo contexto suficiente (distinguir diálogo de
+// pensamiento, seguir el hilo de una conversación) y mantener el fragmento
+// lo bastante corto para que no tome decisiones editoriales por su cuenta.
+const OLLAMA_BATCH_SIZE = 20;
+
+// Corrige el texto por lotes de OLLAMA_BATCH_SIZE líneas y reconstruye el
+// resultado. Si un lote vuelve con distinto número de líneas que el enviado,
+// no se puede mapear la corrección a su posición original con seguridad: se
+// descarta ese lote (se conserva tal cual) en vez de desalinear el resto.
+async function correctSceneInBatches(original, loadingText) {
   const lines = original.split('\n');
   const correctedLines = new Array(lines.length);
-  const toCorrect = lines.reduce((n, l) => n + (l.trim() ? 1 : 0), 0);
-  let done = 0;
+  const totalBatches = Math.ceil(lines.length / OLLAMA_BATCH_SIZE);
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) {
-      correctedLines[i] = line;
+  for (let b = 0; b < totalBatches; b++) {
+    const start = b * OLLAMA_BATCH_SIZE;
+    const end = Math.min(start + OLLAMA_BATCH_SIZE, lines.length);
+    const batch = lines.slice(start, end);
+
+    loadingText.textContent = `Revisando líneas ${start + 1}-${end} de ${lines.length}...`;
+
+    // Lote sin contenido (solo líneas en blanco): no hace falta llamar al modelo.
+    if (!batch.some(l => l.trim())) {
+      for (let i = start; i < end; i++) correctedLines[i] = lines[i];
       continue;
     }
 
-    done++;
-    loadingText.textContent = `Revisando línea ${done}/${toCorrect}...`;
-
     const result = await window.electronAPI.callClaude({
-      selectedText: line,
+      selectedText: batch.join('\n'),
       action: 'corregir',
-      maxTokens: 500
+      maxTokens: 3000
     });
 
     if (!result.success) return result;
-    correctedLines[i] = result.response;
+
+    const correctedBatch = result.response.split('\n');
+    const sameLineCount = correctedBatch.length === batch.length;
+
+    for (let i = start; i < end; i++) {
+      correctedLines[i] = sameLineCount ? correctedBatch[i - start] : lines[i];
+    }
   }
 
   return { success: true, response: correctedLines.join('\n') };
@@ -195,7 +213,7 @@ function setupSceneReviewListeners() {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     reviewScene,
-    correctSceneByLine,
+    correctSceneInBatches,
     computeWordDiff,
     renderDiff,
     applySceneReview,

@@ -668,6 +668,9 @@ const DEFAULT_PROMPTS = {
     'el texto corregido: sin comentarios, sin explicaciones, sin preámbulos y sin ' +
     'comillas que lo envuelvan. Si el texto no contiene ningún error, devuélvelo ' +
     'exactamente igual, carácter por carácter. ' +
+    'Si el texto tiene varias líneas, corrige cada línea de forma independiente sin fusionarlas, ' +
+    'dividirlas ni eliminarlas: la salida debe tener exactamente el mismo número de líneas que la ' +
+    'entrada, en el mismo orden. ' +
     'PROHIBIDO usar asteriscos, guiones bajos, markdown ni ningún marcador para señalar cambios. ' +
     'Devuelve texto plano, sin formato adicional de ningún tipo.',
   sinonimos: 'Eres un diccionario de sinónimos en español. Responde solo con una lista ' +
