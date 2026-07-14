@@ -1,6 +1,9 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
+const { execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 require('dotenv').config();
 
 let mainWindow;
@@ -147,6 +150,21 @@ function createMenu() {
         {
           label: 'Costes de la API...',
           click: () => mainWindow.webContents.send('show-cost-report')
+        }
+      ]
+    },
+    {
+      label: 'Git',
+      submenu: [
+        {
+          label: 'Commit y Push...',
+          accelerator: 'CmdOrCtrl+Shift+G',
+          click: () => mainWindow.webContents.send('show-git-commit')
+        },
+        { type: 'separator' },
+        {
+          label: 'Pull',
+          click: () => mainWindow.webContents.send('git-pull-request')
         }
       ]
     }
@@ -1568,6 +1586,65 @@ ipcMain.handle('save-app-settings', async (_, settings) => {
 
   await writeProperties(props);
   return { success: true };
+});
+
+// === GIT ===
+// Se asume que el directorio del proyecto ya tiene git inicializado y
+// la autenticación con el remoto configurada por fuera de la aplicación.
+
+async function runGit(args, cwd) {
+  try {
+    // core.quotepath=false evita que git escape/entrecomille rutas con tildes u otros caracteres no-ASCII
+    const { stdout } = await execFileAsync('git', ['-c', 'core.quotepath=false', ...args], { cwd, maxBuffer: 10 * 1024 * 1024 });
+    // Solo se recorta el final: en "git status --porcelain" el espacio inicial de cada
+    // línea forma parte del código de estado (p.ej. " M archivo.txt") y no debe perderse.
+    return { success: true, stdout: stdout.replace(/\s+$/, '') };
+  } catch (error) {
+    const message = (error.stderr || error.stdout || error.message || '').toString().trim();
+    return { success: false, error: message };
+  }
+}
+
+function parseGitStatus(porcelain) {
+  return porcelain
+    .split('\n')
+    .filter(line => line.length > 0)
+    .map(line => ({ status: line.substring(0, 2), file: line.substring(3) }));
+}
+
+ipcMain.handle('git-status', async (event, projectPath) => {
+  const result = await runGit(['status', '--porcelain'], projectPath);
+  if (!result.success) return { success: false, error: result.error };
+  return { success: true, changes: parseGitStatus(result.stdout) };
+});
+
+ipcMain.handle('git-commit-and-push', async (event, projectPath, message) => {
+  const add = await runGit(['add', '-A'], projectPath);
+  if (!add.success) return { success: false, error: add.error };
+
+  const status = await runGit(['status', '--porcelain'], projectPath);
+  if (!status.success) return { success: false, error: status.error };
+
+  let committed = false;
+  if (status.stdout.length > 0) {
+    if (!message || !message.trim()) {
+      return { success: false, error: 'El mensaje de commit no puede estar vacío' };
+    }
+    const commit = await runGit(['commit', '-m', message], projectPath);
+    if (!commit.success) return { success: false, error: commit.error };
+    committed = true;
+  }
+
+  const push = await runGit(['push', '-u', 'origin', 'HEAD'], projectPath);
+  if (!push.success) return { success: false, error: push.error, committed };
+
+  return { success: true, committed };
+});
+
+ipcMain.handle('git-pull', async (event, projectPath) => {
+  const result = await runGit(['pull'], projectPath);
+  if (!result.success) return { success: false, error: result.error };
+  return { success: true, output: result.stdout };
 });
 
 // === APP LIFECYCLE ===

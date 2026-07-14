@@ -16,6 +16,7 @@ function openModal(modalId) {
   if (modalId === 'modal-find-replace') prepareFindReplaceModal();
   if (modalId === 'modal-project-metadata') openProjectMetadataModal();
   if (modalId === 'modal-app-settings') prepareAppSettingsModal();
+  if (modalId === 'modal-git-commit') prepareGitCommitModal();
 }
 
 // Cerrar modal

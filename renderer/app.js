@@ -69,6 +69,7 @@ function setupAllListeners() {
   setupGenealogyListeners();
   setupAppSettingsListeners();
   setupPromptsConfigListeners();
+  setupGitListeners();
 }
 
 // Cargar al iniciar

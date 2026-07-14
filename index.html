@@ -687,6 +687,36 @@
     </div>
   </div>
 
+  <div id="modal-git-commit" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3>🔀 Commit y Push</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="git-commit-loading" class="loading">
+          <div class="spinner"></div>
+          <p>Comprobando cambios...</p>
+        </div>
+        <div id="git-commit-error" class="error hidden"></div>
+        <div id="git-commit-content" class="hidden">
+          <p id="git-commit-nochanges" class="empty-state hidden">No hay cambios pendientes. Todo está sincronizado.</p>
+          <div id="git-commit-changes-wrap" class="hidden">
+            <label>Cambios detectados:</label>
+            <div id="git-commit-changes" class="git-changes-list"></div>
+            <label for="input-git-message">Mensaje de commit:</label>
+            <textarea id="input-git-message" class="modal-input" rows="3" placeholder="Describe los cambios..."></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-git-commit-push" class="btn-primary" disabled>Commit y Push</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-scene-review" class="modal hidden">
     <div class="modal-backdrop"></div>
     <div class="modal-content modal-xlarge">
@@ -1029,6 +1059,7 @@
   <script src="renderer/genealogy.js"></script>
   <script src="renderer/appSettings.js"></script>
   <script src="renderer/promptsConfig.js"></script>
+  <script src="renderer/git.js"></script>
   <script src="renderer/app.js"></script>
 </body>
 </html>

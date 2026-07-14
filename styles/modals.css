@@ -112,6 +112,51 @@
   line-height: 1.5;
 }
 
+/* GIT: COMMIT Y PUSH */
+/* (No hay .hidden global: cada elemento necesita su propia regla.) */
+#git-commit-loading.hidden,
+#git-commit-content.hidden,
+#git-commit-nochanges.hidden,
+#git-commit-changes-wrap.hidden {
+  display: none;
+}
+
+.git-changes-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.git-change-row {
+  display: flex;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.git-change-row:last-child {
+  border-bottom: none;
+}
+
+.git-change-status {
+  flex: 0 0 auto;
+  min-width: 80px;
+  color: var(--text-secondary);
+}
+
+.git-change-file {
+  font-family: var(--font-mono, monospace);
+  word-break: break-all;
+}
+
+#btn-git-commit-push:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* REVISIÓN DE ESCENA (DIFF) */
 /* No existe una clase .hidden global: cada elemento necesita su propia regla. */
 #scene-review-loading.hidden,

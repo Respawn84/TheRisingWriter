@@ -51,6 +51,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppSettings: () => ipcRenderer.invoke('get-app-settings'),
   saveAppSettings: (settings) => ipcRenderer.invoke('save-app-settings', settings),
 
+  // Git
+  gitStatus: (projectPath) => ipcRenderer.invoke('git-status', projectPath),
+  gitCommitAndPush: (projectPath, message) => ipcRenderer.invoke('git-commit-and-push', projectPath, message),
+  gitPull: (projectPath) => ipcRenderer.invoke('git-pull', projectPath),
+  onShowGitCommit: (callback) => ipcRenderer.on('show-git-commit', callback),
+  onGitPullRequest: (callback) => ipcRenderer.on('git-pull-request', callback),
+
   // Eventos del main
   onProjectFolderOpened: (callback) => ipcRenderer.on('project-folder-opened', (_, path) => callback(path)),
   onProjectFileOpened: (callback) => ipcRenderer.on('project-file-opened', (_, path) => callback(path)),
