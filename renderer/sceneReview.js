@@ -69,9 +69,13 @@ async function reviewScene() {
 const OLLAMA_BATCH_SIZE = 20;
 
 // Corrige el texto por lotes de OLLAMA_BATCH_SIZE líneas y reconstruye el
-// resultado. Si un lote vuelve con distinto número de líneas que el enviado,
-// no se puede mapear la corrección a su posición original con seguridad: se
-// descarta ese lote (se conserva tal cual) en vez de desalinear el resto.
+// resultado. La comparación de líneas ignora las líneas en blanco: algunos
+// modelos locales devuelven líneas vacías de más o de menos sin tocar el
+// contenido, y eso no debe invalidar una corrección por lo demás correcta.
+// Si el lote vuelve con distinto número de líneas CON CONTENIDO que el
+// enviado, no se puede mapear la corrección a su posición original con
+// seguridad: se descarta ese lote (se conserva tal cual) en vez de
+// desalinear el resto.
 async function correctSceneInBatches(original, loadingText) {
   const lines = original.split('\n');
   const correctedLines = new Array(lines.length);
@@ -99,10 +103,25 @@ async function correctSceneInBatches(original, loadingText) {
     if (!result.success) return result;
 
     const correctedBatch = result.response.split('\n');
-    const sameLineCount = correctedBatch.length === batch.length;
+    const nonEmptyOriginal = batch.filter(l => l.trim() !== '');
+    const nonEmptyCorrected = correctedBatch.filter(l => l.trim() !== '');
+    const sameLineCount = nonEmptyCorrected.length === nonEmptyOriginal.length;
 
+    // Las líneas en blanco del original se conservan tal cual en su posición;
+    // las líneas con contenido se emparejan en orden con las líneas con
+    // contenido de la respuesta, ignorando cuántas líneas vacías haya metido
+    // o quitado el modelo alrededor.
+    let correctedIdx = 0;
     for (let i = start; i < end; i++) {
-      correctedLines[i] = sameLineCount ? correctedBatch[i - start] : lines[i];
+      const originalLine = lines[i];
+      if (!sameLineCount) {
+        correctedLines[i] = originalLine;
+      } else if (originalLine.trim() === '') {
+        correctedLines[i] = originalLine;
+      } else {
+        correctedLines[i] = nonEmptyCorrected[correctedIdx];
+        correctedIdx++;
+      }
     }
   }
 
