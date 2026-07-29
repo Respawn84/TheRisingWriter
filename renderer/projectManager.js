@@ -48,8 +48,12 @@ async function loadOrCreateProject(dirPath) {
   console.log('Resultado de loadOrCreateProject:', result);
 
   if (dirPath.endsWith('.json')) {
-    //Si termina en .json, es un fichero, ajustar la ruta raíz del proyecto
-    dirPath = dirPath.substring(0, dirPath.lastIndexOf('/'));
+    // Si termina en .json, es un fichero: ajustar la ruta raíz del proyecto
+    // quitando el nombre del fichero. En Windows la ruta llega con "\" en vez
+    // de "/", así que hay que buscar el último separador de cualquiera de
+    // los dos tipos (el renderer no tiene acceso al módulo "path" de Node).
+    const lastSep = Math.max(dirPath.lastIndexOf('/'), dirPath.lastIndexOf('\\'));
+    dirPath = dirPath.substring(0, lastSep);
     state.projectRootPath = dirPath;
     state.projectMode = 'json';
   }else{
