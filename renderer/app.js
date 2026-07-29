@@ -35,6 +35,10 @@ function setupMainEventListeners() {
     openModal('modal-cost-report');
   });
 
+  window.electronAPI.onLowApiBalance(({ balance, warnThreshold }) => {
+    showNotification(`Saldo por debajo de $${warnThreshold.toFixed(2)} en la API (saldo actual: $${balance.toFixed(2)})`, true);
+  });
+
   window.electronAPI.onShowFindReplace(() => {
     openModal('modal-find-replace');
   });

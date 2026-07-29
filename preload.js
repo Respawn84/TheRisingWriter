@@ -36,7 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openAITraceLog: () => ipcRenderer.invoke('open-ai-trace-log'),
   getAIConfig: () => ipcRenderer.invoke('get-ai-config'),
   saveAIConfig: (config) => ipcRenderer.invoke('save-ai-config', config),
-  getCostReport: () => ipcRenderer.invoke('get-cost-report'),
+  getApiBalance: () => ipcRenderer.invoke('get-api-balance'),
+  saveApiBalance: (data) => ipcRenderer.invoke('save-api-balance', data),
+  onLowApiBalance: (callback) => ipcRenderer.on('low-api-balance', (_, data) => callback(data)),
   getPromptsConfig: () => ipcRenderer.invoke('get-prompts-config'),
   savePromptsConfig: (prompts) => ipcRenderer.invoke('save-prompts-config', prompts),
 

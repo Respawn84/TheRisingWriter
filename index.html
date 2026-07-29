@@ -532,7 +532,7 @@
 
   <div id="modal-ai-config" class="modal hidden">
     <div class="modal-backdrop"></div>
-    <div class="modal-content">
+    <div class="modal-content modal-large">
       <div class="modal-header">
         <h3>⚙️ Configuración de IA</h3>
         <button class="btn-close">✕</button>
@@ -558,12 +558,6 @@
             <button type="button" id="btn-toggle-api-key" class="btn-secondary" title="Mostrar/ocultar">👁️</button>
           </div>
 
-          <label>Clave Admin API (opcional, para «Costes de la API»):</label>
-          <div class="api-key-row">
-            <input type="password" id="input-admin-api-key" class="modal-input" placeholder="sk-ant-admin..." autocomplete="off">
-            <button type="button" id="btn-toggle-admin-api-key" class="btn-secondary" title="Mostrar/ocultar">👁️</button>
-          </div>
-
           <label>Modelo:</label>
           <select id="select-model" class="modal-input">
             <option value="claude-opus-4-8">Opus 4.8 (claude-opus-4-8)</option>
@@ -577,11 +571,6 @@
           <input type="number" id="input-price-in" class="modal-input" step="0.01" value="3.00">
           <label>Precio Output ($/millón tokens):</label>
           <input type="number" id="input-price-out" class="modal-input" step="0.01" value="15.00">
-
-          <h4 style="margin-top: 20px;">🔔 Alerta de consumo API</h4>
-          <label>Gasto máximo mensual ($):</label>
-          <input type="number" id="input-spend-limit" class="modal-input" step="0.01" min="0" placeholder="0 = sin límite">
-          <p class="field-hint">Antes de cada llamada se comprueba el gasto del mes en curso. Si alcanza este valor, la llamada se bloquea. Deja 0 o vacío para no limitar.</p>
         </div>
 
         <!-- Sección Ollama -->
@@ -602,6 +591,24 @@
           <p class="field-hint">Tiempo máximo de espera por la respuesta del modelo. Modelos más grandes (7B, 14B...) pueden necesitar más de 120s.</p>
 
           <div id="ollama-status" class="field-hint"></div>
+        </div>
+
+        <!-- Sección Envío de texto (corrector ortotipográfico) -->
+        <div id="section-send-mode">
+          <h4 style="margin-top: 20px;">📤 Envío del texto (corrector ortotipográfico)</h4>
+          <div class="provider-toggle">
+            <label class="provider-option">
+              <input type="radio" name="send-mode" value="full" id="radio-send-full">
+              <span>Enviar escena completa</span>
+            </label>
+            <label class="provider-option">
+              <input type="radio" name="send-mode" value="fragments" id="radio-send-fragments">
+              <span>Enviar en fragmentos</span>
+            </label>
+          </div>
+          <label>Líneas por fragmento:</label>
+          <input type="number" id="input-fragment-lines" class="modal-input" min="1" step="1" value="20">
+          <p class="field-hint">Solo aplica cuando se elige "Enviar en fragmentos". Fragmentos más pequeños dan al modelo menos contexto pero son más fiables con modelos locales pequeños; fragmentos grandes (o "escena completa") funcionan mejor con Claude.</p>
         </div>
 
         <div id="ai-config-error" class="error hidden"></div>
@@ -664,20 +671,26 @@
         <button class="btn-close">✕</button>
       </div>
       <div class="modal-body">
-        <div id="cost-report-loading" class="loading">
-          <div class="spinner"></div>
-          <p>Consultando costes...</p>
-        </div>
-        <div id="cost-report-error" class="error hidden"></div>
-        <div id="cost-report-content" class="hidden">
+        <div id="api-balance-block">
+          <h4>💰 Saldo restante</h4>
           <div class="cost-report-total">
-            <span class="cost-report-total-label">Gasto del mes en curso</span>
-            <span id="cost-report-total-value" class="cost-report-total-value">$0.00</span>
+            <span class="cost-report-total-label">Saldo actual</span>
+            <span id="api-balance-value" class="cost-report-total-value">Sin configurar</span>
           </div>
-          <div id="cost-report-table" class="cost-report-table"></div>
+          <div class="cost-report-total">
+            <span class="cost-report-total-label">Gastado desde el último saldo</span>
+            <span id="api-balance-spent-value" class="cost-report-total-value">$0.00</span>
+          </div>
+          <p class="field-hint" id="api-balance-updated-at"></p>
+          <label>Saldo real ($):</label>
+          <input type="number" id="input-api-balance" class="modal-input" step="0.01" min="0" placeholder="Consulta tu saldo en la consola de Anthropic">
+          <label>Avisar cuando el saldo baje de ($):</label>
+          <input type="number" id="input-api-balance-threshold" class="modal-input" step="0.01" min="0" placeholder="0 = sin aviso">
+          <button type="button" id="btn-save-api-balance" class="btn-primary">💾 Guardar saldo</button>
           <p class="cost-report-note">
-            ⚠️ La API de Claude solo expone el <strong>gasto</strong>, no el saldo restante.
-            Para ver el crédito disponible consulta la consola de Anthropic (Billing).
+            Anthropic no expone el saldo restante por API. Cada vez que lo consultes en la consola (Billing),
+            actualízalo aquí: a partir de ese momento, cada petición a Claude irá restando su coste de este valor,
+            y «Gastado desde el último saldo» se reinicia desde ahora.
           </p>
         </div>
       </div>

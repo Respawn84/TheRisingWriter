@@ -671,6 +671,7 @@ const LOG_FILE = path.join(app.getPath('userData'), 'usage.log');
 const TRACE_LOG_FILE = path.join(app.getPath('userData'), 'ai-trace.log');
 const AI_CONFIG_FILE = path.join(app.getPath('userData'), 'ai-config.json');
 const PROMPTS_CONFIG_FILE = path.join(app.getPath('userData'), 'prompts-config.json');
+const API_BALANCE_FILE = path.join(app.getPath('userData'), 'api-balance.json');
 
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 
@@ -728,10 +729,6 @@ async function readAIConfig() {
   return {
     apiKey: stored.apiKey || process.env.ANTHROPIC_API_KEY || '',
     model: stored.model || DEFAULT_MODEL,
-    // Clave Admin (sk-ant-admin...), necesaria para el endpoint de costes.
-    adminApiKey: stored.adminApiKey || process.env.ANTHROPIC_ADMIN_KEY || '',
-    // Límite de gasto mensual en USD. 0 = sin límite.
-    spendLimit: parseFloat(stored.spendLimit) || 0,
     // Proveedor: 'claude' (API Anthropic) u 'ollama' (local).
     provider: stored.provider || 'claude',
     ollamaUrl: stored.ollamaUrl || 'http://localhost:11434',
@@ -739,7 +736,12 @@ async function readAIConfig() {
     ollamaTemperature: stored.ollamaTemperature !== undefined ? parseFloat(stored.ollamaTemperature) : 0.2,
     // Timeout de la petición de chat a Ollama, en segundos. Modelos más grandes
     // (7B, 14B...) pueden tardar más de los 120s por defecto en máquinas modestas.
-    ollamaTimeout: stored.ollamaTimeout !== undefined ? parseInt(stored.ollamaTimeout, 10) : 120
+    ollamaTimeout: stored.ollamaTimeout !== undefined ? parseInt(stored.ollamaTimeout, 10) : 120,
+    // Modo de envío del corrector ortotipográfico: 'full' (toda la escena en una
+    // llamada) o 'fragments' (por lotes de fragmentLines líneas). Aplica a ambos
+    // proveedores por igual.
+    sendMode: stored.sendMode === 'full' ? 'full' : 'fragments',
+    fragmentLines: stored.fragmentLines !== undefined ? parseInt(stored.fragmentLines, 10) : 20
   };
 }
 const PROPERTIES_FILE = path.join(
@@ -756,20 +758,20 @@ ipcMain.handle('get-ai-config', async () => {
   return await readAIConfig();
 });
 
-ipcMain.handle('save-ai-config', async (event, { apiKey, model, adminApiKey, spendLimit, provider, ollamaUrl, ollamaModel, ollamaTemperature, ollamaTimeout }) => {
+ipcMain.handle('save-ai-config', async (event, { apiKey, model, provider, ollamaUrl, ollamaModel, ollamaTemperature, ollamaTimeout, sendMode, fragmentLines }) => {
   try {
     await fs.writeFile(
       AI_CONFIG_FILE,
       JSON.stringify({
         apiKey: apiKey || '',
         model: model || DEFAULT_MODEL,
-        adminApiKey: adminApiKey || '',
-        spendLimit: parseFloat(spendLimit) || 0,
         provider: provider || 'claude',
         ollamaUrl: ollamaUrl || 'http://localhost:11434',
         ollamaModel: ollamaModel || 'qwen2.5:7b-instruct',
         ollamaTemperature: ollamaTemperature !== undefined ? parseFloat(ollamaTemperature) : 0.2,
-        ollamaTimeout: ollamaTimeout !== undefined ? parseInt(ollamaTimeout, 10) : 120
+        ollamaTimeout: ollamaTimeout !== undefined ? parseInt(ollamaTimeout, 10) : 120,
+        sendMode: sendMode === 'full' ? 'full' : 'fragments',
+        fragmentLines: fragmentLines !== undefined ? parseInt(fragmentLines, 10) : 20
       }, null, 2)
     );
     return { success: true };
@@ -797,101 +799,56 @@ ipcMain.handle('save-prompts-config', async (event, prompts) => {
   }
 });
 
-// Informe de costes de la organización (Admin API). Reporta GASTO, no saldo.
-async function fetchCostReport() {
-  const { apiKey, adminApiKey } = await readAIConfig();
-  const key = adminApiKey || apiKey;
-  if (!key) {
-    return { success: false, error: 'No hay clave configurada. Ábrela en IA → Configuración.' };
+// Lee el saldo restante configurado manualmente por el usuario (ver «Saldo
+// restante» en Costes de la API). balance:null significa que no se ha
+// configurado todavía, y por tanto no se resta nada tras cada petición.
+async function readApiBalance() {
+  try {
+    const stored = JSON.parse(await fs.readFile(API_BALANCE_FILE, 'utf-8'));
+    return {
+      balance: typeof stored.balance === 'number' ? stored.balance : null,
+      warnThreshold: typeof stored.warnThreshold === 'number' ? stored.warnThreshold : 0,
+      updatedAt: stored.updatedAt || null
+    };
+  } catch {
+    return { balance: null, warnThreshold: 0, updatedAt: null };
   }
-
-  // Rango: desde el primer día del mes en curso (alineado a día, UTC).
-  const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const params = new URLSearchParams({
-    starting_at: start.toISOString(),
-    bucket_width: '1d',
-    limit: '31'
-  });
-
-  const res = await fetch(`https://api.anthropic.com/v1/organizations/cost_report?${params}`, {
-    headers: {
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01'
-    }
-  });
-
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    const msg = body?.error?.message || `HTTP ${res.status}`;
-    return { success: false, status: res.status, error: msg };
-  }
-
-  return { success: true, data: body, startedAt: start.toISOString() };
 }
 
-ipcMain.handle('get-cost-report', async () => {
+ipcMain.handle('get-api-balance', async () => {
+  return await readApiBalance();
+});
+
+// Guardar el saldo marca un nuevo punto de referencia (updatedAt): a partir
+// de aquí se resta el coste de cada petición y las estadísticas de coste
+// acumulado (Estadísticas de Uso) se recalculan solo desde este instante.
+ipcMain.handle('save-api-balance', async (event, { balance, warnThreshold }) => {
   try {
-    return await fetchCostReport();
+    const data = {
+      balance: parseFloat(balance) || 0,
+      warnThreshold: parseFloat(warnThreshold) || 0,
+      updatedAt: new Date().toISOString()
+    };
+    await fs.writeFile(API_BALANCE_FILE, JSON.stringify(data, null, 2));
+    return { success: true, ...data };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
 
-// Suma todos los importes de un cost_report.
-function sumCostReport(report) {
-  let total = 0;
-  for (const bucket of report?.data?.data || []) {
-    for (const r of bucket.results || []) {
-      total += parseFloat(r.amount) || 0;
-    }
+// Resta el coste de una petición real a Claude del saldo configurado. Si no
+// hay saldo configurado, no hace nada (no hay referencia de la que restar).
+// Avisa al renderer solo al cruzar el umbral hacia abajo, no en cada
+// petición mientras el saldo se mantiene por debajo.
+async function applyApiBalanceDeduction(cost) {
+  const { balance, warnThreshold, updatedAt } = await readApiBalance();
+  if (balance === null) return;
+  const before = balance;
+  const after = before - cost;
+  await fs.writeFile(API_BALANCE_FILE, JSON.stringify({ balance: after, warnThreshold, updatedAt }, null, 2));
+  if (warnThreshold > 0 && before > warnThreshold && after <= warnThreshold) {
+    mainWindow?.webContents.send('low-api-balance', { balance: after, warnThreshold });
   }
-  return total;
-}
-
-// Gasto del mes en curso vía cost_report, cacheado 5 min. Devuelve null si no
-// se puede obtener (sin clave admin, error de red, etc.).
-let costReportCache = { at: 0, total: null };
-async function getMonthSpendFromReport() {
-  const now = Date.now();
-  if (costReportCache.total !== null && now - costReportCache.at < 5 * 60 * 1000) {
-    return costReportCache.total;
-  }
-  try {
-    const report = await fetchCostReport();
-    if (!report.success) return null;
-    const total = sumCostReport(report);
-    costReportCache = { at: now, total };
-    return total;
-  } catch {
-    return null;
-  }
-}
-
-// Gasto del mes en curso según el registro local (usage.log). Solo cuenta lo
-// gastado a través de esta app; sirve de respaldo si no hay clave admin.
-async function getLocalMonthSpend() {
-  try {
-    const data = await fs.readFile(LOG_FILE, 'utf-8');
-    const now = new Date();
-    const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-    return data.trim().split('\n').filter(Boolean)
-      .map(l => { try { return JSON.parse(l); } catch { return null; } })
-      .filter(t => t && new Date(t.timestamp).getTime() >= start)
-      .reduce((s, t) => s + (t.cost || 0), 0);
-  } catch {
-    return 0;
-  }
-}
-
-// Gasto del mes para la guardia de consumo. El informe real puede ir retrasado
-// (y se cachea 5 min), así que tomamos el máximo entre él y el registro local,
-// que refleja al instante las llamadas hechas desde la app. Si no hay informe,
-// usamos solo el local.
-async function getMonthSpend() {
-  const local = await getLocalMonthSpend();
-  const fromReport = await getMonthSpendFromReport();
-  return fromReport !== null ? Math.max(fromReport, local) : local;
 }
 
 ipcMain.handle('get-pricing', async () => {
@@ -948,11 +905,20 @@ ipcMain.handle('get-usage-stats', async () => {
   try {
     const data = await fs.readFile(LOG_FILE, 'utf-8');
     const txs = data.trim().split('\n').filter(l => l).map(l => JSON.parse(l));
-    
+
+    // Los totales se recalculan solo desde la última vez que se fijó el saldo
+    // (ver «Saldo restante» en Costes de la API): el log histórico completo
+    // sigue intacto y accesible vía «Ver Log», pero el acumulado mostrado aquí
+    // se reinicia con cada actualización de saldo en vez de crecer sin límite.
+    const { updatedAt } = await readApiBalance();
+    const sinceRebase = updatedAt
+      ? txs.filter(t => new Date(t.timestamp).getTime() >= new Date(updatedAt).getTime())
+      : txs;
+
     return {
-      totalInputTokens: txs.reduce((s, t) => s + t.inputTokens, 0),
-      totalOutputTokens: txs.reduce((s, t) => s + t.outputTokens, 0),
-      totalCost: txs.reduce((s, t) => s + t.cost, 0),
+      totalInputTokens: sinceRebase.reduce((s, t) => s + t.inputTokens, 0),
+      totalOutputTokens: sinceRebase.reduce((s, t) => s + t.outputTokens, 0),
+      totalCost: sinceRebase.reduce((s, t) => s + t.cost, 0),
       recentTransactions: txs.slice(-10).reverse()
     };
   } catch {
@@ -1014,21 +980,9 @@ ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens })
     }
 
     // === Proveedor Claude ===
-    const { apiKey, model, spendLimit } = config;
+    const { apiKey, model } = config;
     if (!apiKey) {
       return { success: false, error: 'API Key no configurada. Ábrela en IA → Configuración.' };
-    }
-
-    // Alerta de consumo: bloquear si el gasto del mes ya alcanza el límite.
-    if (spendLimit > 0) {
-      const monthSpend = await getMonthSpend();
-      if (monthSpend >= spendLimit) {
-        return {
-          success: false,
-          error: `Límite de gasto mensual alcanzado: $${monthSpend.toFixed(2)} de $${spendLimit.toFixed(2)}. ` +
-            `Ajusta el límite en IA → Configuración para seguir usando la IA.`
-        };
-      }
     }
 
     const Anthropic = require('@anthropic-ai/sdk');
@@ -1056,6 +1010,7 @@ ipcMain.handle('call-claude', async (event, { selectedText, action, maxTokens })
       outputTokens: output_tokens,
       cost
     });
+    await applyApiBalanceDeduction(cost);
 
     return { success: true, response, inputTokens: input_tokens, outputTokens: output_tokens, cost };
   } catch (error) {

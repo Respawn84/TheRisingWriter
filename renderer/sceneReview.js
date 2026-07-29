@@ -32,17 +32,18 @@ async function reviewScene() {
   content.classList.add('hidden');
   openModal('modal-scene-review');
 
-  // Con Ollama, los modelos pequeños/locales pierden fidelidad si reciben la
-  // escena entera (demasiadas normas que recordar sobre demasiado texto). Se
-  // corrige por lotes de líneas: cada petición es un fragmento corto que el
-  // modelo no puede reestructurar a lo grande, pero conserva líneas vecinas
-  // como contexto para distinguir diálogo («—») de pensamiento («« »»), algo
-  // que se perdía corrigiendo línea a línea de forma aislada. Con Claude se
-  // manda la escena entera como siempre: no tiene ese problema y trocear
-  // multiplicaría el coste (el system prompt se reenviaría en cada lote).
-  const { provider } = await window.electronAPI.getAIConfig();
-  const result = provider === 'ollama'
-    ? await correctSceneInBatches(original, loadingText)
+  // El usuario elige en Configuración de IA si la escena se manda entera o
+  // por fragmentos, independientemente del proveedor (Claude u Ollama). Con
+  // modelos pequeños/locales, mandar la escena entera pierde fidelidad
+  // (demasiadas normas que recordar sobre demasiado texto), así que conviene
+  // trocear: cada petición es un fragmento corto que el modelo no puede
+  // reestructurar a lo grande, pero conserva líneas vecinas como contexto
+  // para distinguir diálogo («—») de pensamiento («« »»), algo que se perdía
+  // corrigiendo línea a línea de forma aislada. Mandar la escena entera evita
+  // ese troceo pero multiplica el tamaño de cada llamada.
+  const { sendMode, fragmentLines } = await window.electronAPI.getAIConfig();
+  const result = sendMode === 'fragments'
+    ? await correctSceneInBatches(original, loadingText, fragmentLines || 20)
     : await window.electronAPI.callClaude({ selectedText: original, action: 'corregir', maxTokens: 8000 });
 
   loading.classList.add('hidden');
@@ -62,28 +63,25 @@ async function reviewScene() {
   content.classList.remove('hidden');
 }
 
-// Tamaño del lote de líneas enviado a Ollama en cada petición. Un compromiso
-// entre darle al modelo contexto suficiente (distinguir diálogo de
-// pensamiento, seguir el hilo de una conversación) y mantener el fragmento
-// lo bastante corto para que no tome decisiones editoriales por su cuenta.
-const OLLAMA_BATCH_SIZE = 20;
-
-// Corrige el texto por lotes de OLLAMA_BATCH_SIZE líneas y reconstruye el
-// resultado. La comparación de líneas ignora las líneas en blanco: algunos
-// modelos locales devuelven líneas vacías de más o de menos sin tocar el
-// contenido, y eso no debe invalidar una corrección por lo demás correcta.
-// Si el lote vuelve con distinto número de líneas CON CONTENIDO que el
-// enviado, no se puede mapear la corrección a su posición original con
-// seguridad: se descarta ese lote (se conserva tal cual) en vez de
-// desalinear el resto.
-async function correctSceneInBatches(original, loadingText) {
+// Corrige el texto por lotes de batchSize líneas (configurado por el usuario
+// en Configuración de IA) y reconstruye el resultado. Un fragmento corto le
+// da al modelo contexto suficiente (distinguir diálogo de pensamiento,
+// seguir el hilo de una conversación) sin dejarle tomar decisiones
+// editoriales a lo grande. La comparación de líneas ignora las líneas en
+// blanco: algunos modelos locales devuelven líneas vacías de más o de menos
+// sin tocar el contenido, y eso no debe invalidar una corrección por lo
+// demás correcta. Si el lote vuelve con distinto número de líneas CON
+// CONTENIDO que el enviado, no se puede mapear la corrección a su posición
+// original con seguridad: se descarta ese lote (se conserva tal cual) en vez
+// de desalinear el resto.
+async function correctSceneInBatches(original, loadingText, batchSize) {
   const lines = original.split('\n');
   const correctedLines = new Array(lines.length);
-  const totalBatches = Math.ceil(lines.length / OLLAMA_BATCH_SIZE);
+  const totalBatches = Math.ceil(lines.length / batchSize);
 
   for (let b = 0; b < totalBatches; b++) {
-    const start = b * OLLAMA_BATCH_SIZE;
-    const end = Math.min(start + OLLAMA_BATCH_SIZE, lines.length);
+    const start = b * batchSize;
+    const end = Math.min(start + batchSize, lines.length);
     const batch = lines.slice(start, end);
 
     loadingText.textContent = `Revisando líneas ${start + 1}-${end} de ${lines.length}...`;

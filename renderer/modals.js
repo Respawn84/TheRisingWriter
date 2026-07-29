@@ -8,7 +8,7 @@ function openModal(modalId) {
   if (modalId === 'modal-stats') loadStats();
   if (modalId === 'modal-ai-config') loadAIConfig();
   if (modalId === 'modal-prompts-config') preparePromptsConfigModal();
-  if (modalId === 'modal-cost-report') loadCostReport();
+  if (modalId === 'modal-cost-report') loadApiBalance();
   if (modalId === 'modal-rename') prepareRenameModal();
   if (modalId === 'modal-delete') prepareDeleteModal();
   if (modalId === 'modal-new-file') prepareNewFileModal();
@@ -83,9 +83,7 @@ async function loadAIConfig() {
 
   // Claude
   document.getElementById('input-api-key').value = config.apiKey || '';
-  document.getElementById('input-admin-api-key').value = config.adminApiKey || '';
   document.getElementById('select-model').value = config.model;
-  document.getElementById('input-spend-limit').value = config.spendLimit || '';
   document.getElementById('input-price-in').value = pricing.inputPrice;
   document.getElementById('input-price-out').value = pricing.outputPrice;
 
@@ -96,6 +94,12 @@ async function loadAIConfig() {
   document.getElementById('input-ollama-temperature').value = temp;
   document.getElementById('ollama-temp-display').textContent = parseFloat(temp).toFixed(2);
   document.getElementById('input-ollama-timeout').value = config.ollamaTimeout !== undefined ? config.ollamaTimeout : 120;
+
+  // Envío de texto (corrector ortotipográfico)
+  const sendMode = config.sendMode || 'fragments';
+  document.querySelector(`input[name="send-mode"][value="${sendMode}"]`).checked = true;
+  document.getElementById('input-fragment-lines').value = config.fragmentLines || 20;
+  document.getElementById('input-fragment-lines').disabled = sendMode !== 'fragments';
 
   // Verificar estado de Ollama si es el proveedor activo
   if (provider === 'ollama') updateOllamaStatus();
@@ -120,13 +124,13 @@ async function saveAIConfig() {
   const config = {
     provider,
     apiKey: document.getElementById('input-api-key').value.trim(),
-    adminApiKey: document.getElementById('input-admin-api-key').value.trim(),
     model: document.getElementById('select-model').value,
-    spendLimit: parseFloat(document.getElementById('input-spend-limit').value) || 0,
     ollamaUrl: document.getElementById('input-ollama-url').value.trim(),
     ollamaModel: document.getElementById('input-ollama-model').value.trim(),
     ollamaTemperature: parseFloat(document.getElementById('input-ollama-temperature').value),
-    ollamaTimeout: parseInt(document.getElementById('input-ollama-timeout').value, 10) || 120
+    ollamaTimeout: parseInt(document.getElementById('input-ollama-timeout').value, 10) || 120,
+    sendMode: document.querySelector('input[name="send-mode"]:checked')?.value || 'fragments',
+    fragmentLines: parseInt(document.getElementById('input-fragment-lines').value, 10) || 20
   };
   const pricing = {
     inputPrice: parseFloat(document.getElementById('input-price-in').value),
@@ -149,57 +153,37 @@ async function saveAIConfig() {
   }
 }
 
-// === MODAL COSTES DE LA API ===
-async function loadCostReport() {
-  const loading = document.getElementById('cost-report-loading');
-  const errorEl = document.getElementById('cost-report-error');
-  const content = document.getElementById('cost-report-content');
-  loading.classList.remove('hidden');
-  errorEl.classList.add('hidden');
-  content.classList.add('hidden');
-
-  const result = await window.electronAPI.getCostReport();
-  loading.classList.add('hidden');
-
-  if (!result.success) {
-    let msg = result.error || 'No se pudo obtener el informe de costes.';
-    if (result.status === 401) {
-      msg = 'Clave no autorizada. El informe de costes requiere una Admin API key (sk-ant-admin…). Configúrala en IA → Configuración.';
-    }
-    errorEl.textContent = msg;
-    errorEl.classList.remove('hidden');
-    return;
-  }
-
-  // Sumar importes por bucket (día) y total.
-  const buckets = (result.data?.data || []).map(bucket => {
-    const amount = (bucket.results || []).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
-    const currency = bucket.results?.[0]?.currency || 'USD';
-    return { date: (bucket.starting_at || '').slice(0, 10), amount, currency };
-  });
-
-  const total = buckets.reduce((s, b) => s + b.amount, 0);
-  const currency = buckets.find(b => b.amount > 0)?.currency || 'USD';
-  document.getElementById('cost-report-total-value').textContent = `${formatMoney(total)} ${currency}`;
-
-  const table = document.getElementById('cost-report-table');
-  const withSpend = buckets.filter(b => b.amount > 0);
-  if (withSpend.length === 0) {
-    table.innerHTML = '<p class="empty-state">Sin gasto registrado este mes</p>';
-  } else {
-    table.innerHTML = withSpend.map(b => `
-      <div class="cost-report-row">
-        <span class="cost-report-date">${b.date}</span>
-        <span class="cost-report-amount">${formatMoney(b.amount)} ${b.currency}</span>
-      </div>
-    `).join('');
-  }
-
-  content.classList.remove('hidden');
-}
-
 function formatMoney(n) {
   return `$${n.toFixed(2)}`;
+}
+
+// === SALDO RESTANTE ===
+async function loadApiBalance() {
+  const [{ balance, warnThreshold, updatedAt }, stats] = await Promise.all([
+    window.electronAPI.getApiBalance(),
+    window.electronAPI.getUsageStats()
+  ]);
+
+  document.getElementById('api-balance-value').textContent =
+    balance === null ? 'Sin configurar' : formatMoney(balance);
+  document.getElementById('api-balance-spent-value').textContent = formatMoney(stats.totalCost);
+  document.getElementById('api-balance-updated-at').textContent =
+    updatedAt ? `Actualizado: ${new Date(updatedAt).toLocaleString()}` : '';
+  document.getElementById('input-api-balance').value = balance === null ? '' : balance;
+  document.getElementById('input-api-balance-threshold').value = warnThreshold || '';
+}
+
+async function saveApiBalance() {
+  const balance = parseFloat(document.getElementById('input-api-balance').value) || 0;
+  const warnThreshold = parseFloat(document.getElementById('input-api-balance-threshold').value) || 0;
+
+  const result = await window.electronAPI.saveApiBalance({ balance, warnThreshold });
+  if (result.success) {
+    await loadApiBalance();
+    showNotification('Saldo guardado ✓');
+  } else {
+    showNotification(result.error || 'Error al guardar el saldo', true);
+  }
 }
 
 // === MODAL RENAME ===
@@ -290,12 +274,11 @@ function setupModalListeners() {
 
   // Configuración IA modal
   document.getElementById('btn-save-ai-config').addEventListener('click', saveAIConfig);
+
+  // Costes de la API — saldo restante
+  document.getElementById('btn-save-api-balance').addEventListener('click', saveApiBalance);
   document.getElementById('btn-toggle-api-key').addEventListener('click', () => {
     const input = document.getElementById('input-api-key');
-    input.type = input.type === 'password' ? 'text' : 'password';
-  });
-  document.getElementById('btn-toggle-admin-api-key').addEventListener('click', () => {
-    const input = document.getElementById('input-admin-api-key');
     input.type = input.type === 'password' ? 'text' : 'password';
   });
 
@@ -311,7 +294,14 @@ function setupModalListeners() {
   document.getElementById('input-ollama-temperature').addEventListener('input', (e) => {
     document.getElementById('ollama-temp-display').textContent = parseFloat(e.target.value).toFixed(2);
   });
-  
+
+  // Toggle envío de texto — habilitar/deshabilitar líneas por fragmento
+  document.querySelectorAll('input[name="send-mode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      document.getElementById('input-fragment-lines').disabled = e.target.value !== 'fragments';
+    });
+  });
+
   // Folder modal
   document.getElementById('btn-confirm-folder').addEventListener('click', createFolder);
   
