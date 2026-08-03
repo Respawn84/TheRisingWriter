@@ -1115,9 +1115,10 @@ async function callOllama({ selectedText, action, config, prompts }) {
 }
 
 // === Detección de verbos auxiliares para el panel de revisión pre-editorial ===
-// Usa siempre Ollama local (nunca Claude), independientemente del proveedor
-// configurado para el corrector — esta detección no es una acción configurable
-// por el usuario, es una ayuda de estilo que corre en segundo plano al guardar.
+// Respeta el proveedor configurado (Claude u Ollama), igual que el corrector.
+// Con Ollama se dispara automáticamente en segundo plano al guardar; con
+// Claude requiere un clic explícito del usuario (ver 'manual' en
+// renderer/editorialReview.js) para no facturar en cada guardado sin avisar.
 const AUXILIARY_VERBS_SYSTEM_PROMPT = `Eres un asistente de análisis lingüístico en español. Se te da un fragmento de texto narrativo. Identifica ÚNICAMENTE construcciones de DOS verbos donde uno funciona como auxiliar del otro (perífrasis verbales):
 - Tiempos compuestos con "haber" + participio: "había llegado", "he comido", "habían salido".
 - Voz pasiva con "ser" + participio: "fue construido", "era esperado por todos".
@@ -1160,6 +1161,45 @@ function parseAuxiliaryVerbsResponse(content) {
 ipcMain.handle('detect-auxiliary-verbs', async (event, { text }) => {
   try {
     const config = await readAIConfig();
+
+    if (config.provider === 'claude') {
+      const { apiKey, model } = config;
+      if (!apiKey) {
+        return { success: false, error: 'API Key no configurada. Ábrela en IA → Configuración.' };
+      }
+
+      const Anthropic = require('@anthropic-ai/sdk');
+      const client = new Anthropic({ apiKey });
+
+      const message = await client.messages.create({
+        model,
+        max_tokens: 1024,
+        system: AUXILIARY_VERBS_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: text }]
+      });
+
+      const content = message.content[0].text.trim();
+      const { input_tokens, output_tokens } = message.usage;
+      const cost = await calculateCost(input_tokens, output_tokens);
+
+      await logTransaction('detectar-auxiliares', input_tokens, output_tokens, cost);
+      await logAITrace({
+        action: 'detectar-auxiliares', model,
+        sentText: text,
+        response: content,
+        inputTokens: input_tokens,
+        outputTokens: output_tokens,
+        cost
+      });
+      await applyApiBalanceDeduction(cost);
+
+      const matches = parseAuxiliaryVerbsResponse(content);
+      if (matches === null) {
+        return { success: false, error: 'Respuesta de Claude no interpretable como JSON.' };
+      }
+      return { success: true, matches };
+    }
+
     const baseUrl = config.ollamaUrl || 'http://localhost:11434';
     const timeoutMs = (config.ollamaTimeout !== undefined ? config.ollamaTimeout : 120) * 1000;
 

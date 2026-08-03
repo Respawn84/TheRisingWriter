@@ -77,6 +77,27 @@
   color: var(--text-secondary);
 }
 
+.editorial-manual-btn {
+  margin-top: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.editorial-manual-btn:hover {
+  background: var(--border);
+}
+
+.editorial-manual-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .editorial-items {
   list-style: none;
   margin: 6px 0 0;

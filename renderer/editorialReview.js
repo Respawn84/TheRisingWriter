@@ -3,12 +3,15 @@
 // El análisis se dispara en segundo plano al guardar la escena (ver
 // analyzeSceneInBackground, llamada sin await desde saveCurrentFile en
 // editor.js) — nunca al abrir el panel, para no repetir el timeout de
-// esperar a Ollama que ya sufre "Revisar Escena" en el clic del botón.
+// esperar a la IA que ya sufre "Revisar Escena" en el clic del botón.
 //
 // Categorías literales/mecánicas se detectan con regex en JS (instantáneo,
-// no depende de Ollama). Solo "verbos auxiliares" requiere criterio
-// lingüístico real y se manda siempre al modelo Ollama local configurado en
-// IA → Configuración, sin importar el proveedor elegido para el corrector.
+// no depende de ningún proveedor). Solo "verbos auxiliares" requiere
+// criterio lingüístico real y usa el proveedor configurado en IA →
+// Configuración (Claude u Ollama), igual que el corrector:
+// - Con Ollama: automático en segundo plano al guardar (gratis, local).
+// - Con Claude: requiere un clic explícito del usuario en el panel, para no
+//   facturar la API en cada guardado sin que el usuario lo pida.
 
 // Orden = prioridad al resolver solapes de resaltado (la primera categoría
 // que reclama un rango de texto se queda con él).
@@ -60,7 +63,7 @@ function computeRegexMatches(text) {
   return categories;
 }
 
-// Ubica cada frase devuelta por Ollama dentro del texto original del lote
+// Ubica cada frase devuelta por el modelo dentro del texto original del lote
 // (case-insensitive), descartando las que no aparecen literalmente — evita
 // resaltar alucinaciones del modelo. `offset` es la posición del lote dentro
 // del texto completo de la escena.
@@ -89,11 +92,13 @@ function locateMatchesInText(matches, text, offset) {
 }
 
 // Trocea la escena por lotes de `fragmentLines` líneas (igual que
-// correctSceneInBatches en sceneReview.js) y pide a Ollama, lote a lote, que
-// liste las perífrasis con verbos auxiliares que encuentre.
-async function detectAuxiliaryVerbsInScene(fullText, fragmentLines) {
+// correctSceneInBatches en sceneReview.js) y pide al proveedor configurado,
+// lote a lote, que liste las perífrasis con verbos auxiliares que encuentre.
+// Respeta sendMode ('full' = la escena entera en una sola llamada, igual que
+// el corrector) tanto para Claude como para Ollama.
+async function detectAuxiliaryVerbsInScene(fullText, config) {
   const lines = fullText.split('\n');
-  const batchSize = fragmentLines || 20;
+  const batchSize = config.sendMode === 'full' ? lines.length : (config.fragmentLines || 20);
   const totalBatches = Math.ceil(lines.length / batchSize);
   const allMatches = [];
   let charOffset = 0;
@@ -122,22 +127,28 @@ async function detectAuxiliaryVerbsInScene(fullText, fragmentLines) {
 // Lanzada sin await desde saveCurrentFile tras guardar con éxito.
 async function analyzeSceneInBackground(path, content) {
   const categories = computeRegexMatches(content);
+  const config = await window.electronAPI.getAIConfig();
+
+  // Con Ollama el análisis es gratis y corre solo, como el resto del panel.
+  // Con Claude cuesta dinero real por cada guardado, así que se deja en
+  // 'manual' hasta que el usuario lo pida explícitamente desde el panel.
+  const autoRun = state.aiConnected && config.provider !== 'claude';
+
   const entry = {
     snapshot: content,
     categories,
-    verbosAuxiliares: { status: 'loading', items: [], error: null }
+    verbosAuxiliares: !state.aiConnected
+      ? { status: 'unavailable', items: [], error: null }
+      : autoRun
+        ? { status: 'loading', items: [], error: null }
+        : { status: 'manual', items: [], error: null }
   };
   editorialReviewCache.set(path, entry);
   refreshEditorialPanelIfVisible(path);
 
-  if (!state.aiConnected) {
-    entry.verbosAuxiliares = { status: 'unavailable', items: [], error: null };
-    refreshEditorialPanelIfVisible(path);
-    return;
-  }
+  if (!autoRun) return;
 
-  const { fragmentLines } = await window.electronAPI.getAIConfig();
-  const result = await detectAuxiliaryVerbsInScene(content, fragmentLines || 20);
+  const result = await detectAuxiliaryVerbsInScene(content, config);
 
   // Si se guardó de nuevo mientras esperábamos, la cache ya tiene otra
   // entrada para este path: no pisamos el resultado más reciente.
@@ -147,6 +158,28 @@ async function analyzeSceneInBackground(path, content) {
     ? { status: 'done', items: result.items, error: null }
     : { status: 'error', items: [], error: result.error };
   refreshEditorialPanelIfVisible(path);
+}
+
+// Disparada por el botón "Analizar" del panel cuando el proveedor es Claude
+// (o cualquier otro caso 'manual'): analiza el último snapshot guardado.
+async function triggerManualAuxiliaryAnalysis() {
+  const tab = getActiveTab();
+  if (!tab) return;
+  const entry = editorialReviewCache.get(tab.path);
+  if (!entry) return;
+
+  entry.verbosAuxiliares = { status: 'loading', items: [], error: null };
+  renderEditorialPanel();
+
+  const config = await window.electronAPI.getAIConfig();
+  const result = await detectAuxiliaryVerbsInScene(entry.snapshot, config);
+
+  if (editorialReviewCache.get(tab.path) !== entry) return;
+
+  entry.verbosAuxiliares = result.success
+    ? { status: 'done', items: result.items, error: null }
+    : { status: 'error', items: [], error: result.error };
+  renderEditorialPanel();
 }
 
 function escapeHtmlEditorial(str) {
@@ -199,7 +232,13 @@ function renderEditorialPanel() {
       if (aux.status === 'loading') {
         html += `<div class="editorial-category"><div class="editorial-category-title">${cat.label} <span class="editorial-loading-dot">analizando…</span></div></div>`;
       } else if (aux.status === 'unavailable') {
-        html += `<div class="editorial-category"><div class="editorial-category-title">${cat.label} <span class="editorial-unavailable">Ollama no disponible</span></div></div>`;
+        html += `<div class="editorial-category"><div class="editorial-category-title">${cat.label} <span class="editorial-unavailable">IA no disponible</span></div></div>`;
+      } else if (aux.status === 'manual') {
+        html += `<div class="editorial-category">
+          <div class="editorial-category-title">${cat.label}</div>
+          <button type="button" class="editorial-manual-btn">Analizar</button>
+          <p class="editorial-manual-hint">Usa la API de Claude — no se ejecuta automáticamente al guardar.</p>
+        </div>`;
       } else if (aux.status === 'error') {
         html += `<div class="editorial-category"><div class="editorial-category-title">${cat.label} <span class="editorial-unavailable">Error: ${escapeHtmlEditorial(aux.error || '')}</span></div></div>`;
       } else {
@@ -279,6 +318,12 @@ function toggleEditorialPanel() {
 function setupEditorialReviewListeners() {
   document.getElementById('btn-editorial-review').addEventListener('click', toggleEditorialPanel);
 
+  // Delegado porque el contenido de #editorial-review-body se regenera en
+  // cada render (el botón "Analizar" del modo manual no existe todavía aquí).
+  document.getElementById('editorial-review-body').addEventListener('click', (e) => {
+    if (e.target.matches('.editorial-manual-btn')) triggerManualAuxiliaryAnalysis();
+  });
+
   const editor = document.getElementById('editor');
 
   // Mantiene el overlay alineado al hacer scroll en el editor.
@@ -304,6 +349,7 @@ if (typeof module !== 'undefined' && module.exports) {
     locateMatchesInText,
     detectAuxiliaryVerbsInScene,
     analyzeSceneInBackground,
+    triggerManualAuxiliaryAnalysis,
     renderEditorialPanel,
     toggleEditorialPanel,
     setupEditorialReviewListeners
