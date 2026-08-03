@@ -1029,12 +1029,9 @@ function stripMarkdown(text) {
     .replace(/_(.+?)_/gs, '$1');         // _cursiva_
 }
 
-async function callOllama({ selectedText, action, config, prompts }) {
-  const { ollamaUrl, ollamaModel, ollamaTemperature, ollamaTimeout } = config;
-  const baseUrl = ollamaUrl || 'http://localhost:11434';
-  const timeoutMs = (ollamaTimeout !== undefined ? ollamaTimeout : 120) * 1000;
-
-  // Ping de disponibilidad antes de la llamada real.
+// Ping de disponibilidad + llamada de chat a Ollama. Compartido por callOllama
+// (corrector, con prompts configurables) y detect-auxiliary-verbs (prompt fijo).
+async function chatWithOllama({ baseUrl, model, temperature, timeoutMs, messages }) {
   try {
     const ping = await fetch(`${baseUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
     if (!ping.ok) throw new Error('ping failed');
@@ -1045,22 +1042,16 @@ async function callOllama({ selectedText, action, config, prompts }) {
     };
   }
 
-  const req = buildPromptRequests(prompts, selectedText)[action] || { system: undefined, user: selectedText };
-
-  const messages = [];
-  if (req.system) messages.push({ role: 'system', content: req.system });
-  messages.push({ role: 'user', content: req.user });
-
   let res;
   try {
     res = await fetch(`${baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: ollamaModel,
+        model,
         messages,
         stream: false,
-        options: { temperature: ollamaTemperature !== undefined ? ollamaTemperature : 0.2 }
+        options: { temperature: temperature !== undefined ? temperature : 0.2 }
       }),
       signal: AbortSignal.timeout(timeoutMs)
     });
@@ -1068,7 +1059,7 @@ async function callOllama({ selectedText, action, config, prompts }) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError') {
       return {
         success: false,
-        error: `Ollama no respondió en ${ollamaTimeout || 120}s. El modelo «${ollamaModel}» puede necesitar más tiempo: ` +
+        error: `Ollama no respondió en ${timeoutMs / 1000}s. El modelo «${model}» puede necesitar más tiempo: ` +
           `sube el timeout en IA → Configuración.`
       };
     }
@@ -1081,25 +1072,121 @@ async function callOllama({ selectedText, action, config, prompts }) {
   }
 
   const data = await res.json();
-  const response = stripMarkdown((data.message?.content || '').trim());
+  return {
+    success: true,
+    content: (data.message?.content || '').trim(),
+    inputTokens: data.prompt_eval_count || 0,
+    outputTokens: data.eval_count || 0
+  };
+}
+
+async function callOllama({ selectedText, action, config, prompts }) {
+  const { ollamaUrl, ollamaModel, ollamaTemperature, ollamaTimeout } = config;
+  const baseUrl = ollamaUrl || 'http://localhost:11434';
+  const timeoutMs = (ollamaTimeout !== undefined ? ollamaTimeout : 120) * 1000;
+
+  const req = buildPromptRequests(prompts, selectedText)[action] || { system: undefined, user: selectedText };
+
+  const messages = [];
+  if (req.system) messages.push({ role: 'system', content: req.system });
+  messages.push({ role: 'user', content: req.user });
+
+  const result = await chatWithOllama({ baseUrl, model: ollamaModel, temperature: ollamaTemperature, timeoutMs, messages });
+  if (!result.success) return result;
+
+  const response = stripMarkdown(result.content);
 
   await logAITrace({
     action, model: ollamaModel,
     sentText: req.user,
     response,
-    inputTokens: data.prompt_eval_count || 0,
-    outputTokens: data.eval_count || 0,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
     cost: 0
   });
 
   return {
     success: true,
     response,
-    inputTokens: data.prompt_eval_count || 0,
-    outputTokens: data.eval_count || 0,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
     cost: 0
   };
 }
+
+// === Detección de verbos auxiliares para el panel de revisión pre-editorial ===
+// Usa siempre Ollama local (nunca Claude), independientemente del proveedor
+// configurado para el corrector — esta detección no es una acción configurable
+// por el usuario, es una ayuda de estilo que corre en segundo plano al guardar.
+const AUXILIARY_VERBS_SYSTEM_PROMPT = `Eres un asistente de análisis lingüístico en español. Se te da un fragmento de texto narrativo. Identifica ÚNICAMENTE construcciones de DOS verbos donde uno funciona como auxiliar del otro (perífrasis verbales):
+- Tiempos compuestos con "haber" + participio: "había llegado", "he comido", "habían salido".
+- Voz pasiva con "ser" + participio: "fue construido", "era esperado por todos".
+- Perífrasis de gerundio con "estar" + gerundio: "estaba corriendo", "está lloviendo".
+- Perífrasis modales/aspectuales: "poder"/"deber"/"soler"/"ir a" + infinitivo: "podía hacer", "debía irse", "solía visitar", "iba a llover".
+
+NO incluyas verbos simples conjugados en una sola palabra funcional, aunque sean de uso muy común: "caminaba", "decidió", "se acercó", "corrió", "llegó", "era" (salvo cuando va seguido de un participio en construcción pasiva, como "era esperado"). Si no ves CLARAMENTE dos verbos juntos en relación auxiliar+principal, no lo incluyas.
+
+Devuelve ÚNICAMENTE un JSON con este formato exacto, sin texto adicional, sin explicaciones y sin bloques de código markdown:
+{"matches": ["fragmento exacto tal como aparece en el texto", ...]}
+
+Si no encuentras ninguna, devuelve {"matches": []}.`;
+
+// Tolera fences de markdown y texto extra alrededor del JSON: los modelos
+// locales pequeños no siempre respetan "solo JSON" al pie de la letra.
+function parseAuxiliaryVerbsResponse(content) {
+  const stripped = content.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+
+  const tryParse = (str) => {
+    try {
+      const parsed = JSON.parse(str);
+      return Array.isArray(parsed?.matches) ? parsed.matches.filter(m => typeof m === 'string') : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const direct = tryParse(stripped);
+  if (direct) return direct;
+
+  const braceMatch = stripped.match(/\{[\s\S]*\}/);
+  if (braceMatch) {
+    const fromBraces = tryParse(braceMatch[0]);
+    if (fromBraces) return fromBraces;
+  }
+
+  return null;
+}
+
+ipcMain.handle('detect-auxiliary-verbs', async (event, { text }) => {
+  try {
+    const config = await readAIConfig();
+    const baseUrl = config.ollamaUrl || 'http://localhost:11434';
+    const timeoutMs = (config.ollamaTimeout !== undefined ? config.ollamaTimeout : 120) * 1000;
+
+    const result = await chatWithOllama({
+      baseUrl,
+      model: config.ollamaModel,
+      temperature: config.ollamaTemperature,
+      timeoutMs,
+      messages: [
+        { role: 'system', content: AUXILIARY_VERBS_SYSTEM_PROMPT },
+        { role: 'user', content: text }
+      ]
+    });
+
+    if (!result.success) return result;
+
+    const matches = parseAuxiliaryVerbsResponse(result.content);
+    if (matches === null) {
+      return { success: false, error: 'Respuesta de Ollama no interpretable como JSON.' };
+    }
+
+    return { success: true, matches };
+  } catch (error) {
+    console.error('Error detect-auxiliary-verbs:', error);
+    return { success: false, error: error.message };
+  }
+});
 
 // Handler para verificar disponibilidad de Ollama desde el renderer.
 ipcMain.handle('check-ollama', async () => {

@@ -1,0 +1,137 @@
+/* === PANEL DE REVISIÓN PRE-EDITORIAL (POSICIONADO ABAJO DERECHA) === */
+/* Mismo patrón de posicionamiento que #modal-find-replace (modals.css). */
+
+#modal-editorial-review {
+  pointer-events: none;
+  background: transparent;
+}
+
+#modal-editorial-review .modal-backdrop {
+  display: none;
+}
+
+#modal-editorial-review .modal-content {
+  position: absolute;
+  bottom: 59px;
+  right: 15px;
+  width: 420px;
+  max-width: 420px;
+  max-height: 70vh;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+#modal-editorial-review .modal-body {
+  overflow-y: auto;
+}
+
+#editorial-review-stale {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: rgba(234, 179, 8, 0.15);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+#editorial-review-stale.hidden {
+  display: none;
+}
+
+.editorial-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.editorial-category {
+  margin-bottom: 12px;
+}
+
+.editorial-category:last-child {
+  margin-bottom: 0;
+}
+
+.editorial-category-title {
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editorial-count {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 1px 7px;
+}
+
+.editorial-loading-dot,
+.editorial-unavailable {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.editorial-items {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.editorial-items li {
+  padding: 1px 0;
+  color: var(--text-secondary);
+}
+
+/* === RESALTADO SOBRE EL EDITOR === */
+/* El editor es un <textarea> de texto plano: no admite HTML interno, así que
+   el resaltado se pinta en un <div> superpuesto detrás, con fondo idéntico
+   al del editor. El textarea solo se vuelve transparente (clase
+   .editorial-highlight-active) cuando el overlay tiene contenido, dejando
+   ver los fondos de color de los <span> a través suyo. */
+
+#editor-main {
+  position: relative;
+}
+
+#editor {
+  position: relative;
+  z-index: 1;
+}
+
+#editor.editorial-highlight-active {
+  background: transparent;
+}
+
+#editorial-highlight-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: var(--editor-padding);
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
+  line-height: var(--editor-line-height);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  background: var(--editor-bg);
+  color: transparent;
+  pointer-events: none;
+}
+
+.eh-cat-auxiliares { background-color: rgba(96, 165, 250, 0.35); border-radius: 2px; }
+.eh-cat-muletillas { background-color: rgba(248, 113, 113, 0.35); border-radius: 2px; }
+.eh-cat-gerundios { background-color: rgba(192, 132, 252, 0.35); border-radius: 2px; }
+.eh-cat-adverbios { background-color: rgba(74, 222, 128, 0.35); border-radius: 2px; }
+.eh-cat-adjetivos { background-color: rgba(251, 191, 36, 0.35); border-radius: 2px; }

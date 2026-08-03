@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles/tramaTimeline.css">
   <link rel="stylesheet" href="styles/genealogy.css">
   <link rel="stylesheet" href="styles/appSettings.css">
+  <link rel="stylesheet" href="styles/editorialReview.css">
 </head>
 <body>
   <div id="main-container">
@@ -59,6 +60,7 @@
       <div id="editors-wrapper">
         <div id="editor-main" class="editor-panel">
 
+      <div id="editorial-highlight-overlay"></div>
       <textarea id="editor" placeholder="Selecciona un archivo para empezar..."></textarea>
         </div>
         <div id="split-resizer" class="hidden"></div>
@@ -124,6 +126,7 @@
         <button id="btn-quotes-raya" class="btn-format" title="Raya">—</button>
         <button id="btn-quotes-normal" class="btn-format" title="Comillas">" "</button>
         <div class="divider"></div>
+        <button id="btn-editorial-review" class="btn-format" title="Revisión pre-editorial (muletillas, adverbios, verbos auxiliares...)">🧐 Pre-editorial</button>
         <button id="btn-review-scene" class="btn-format" title="Revisar ortotipografía de toda la escena con IA">🔍 Revisar escena</button>
         <div class="format-bar-right">
           <span id="word-count">0 palabras</span>
@@ -807,6 +810,20 @@
     </div>
   </div>
 
+  <div id="modal-editorial-review" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🧐 Revisión pre-editorial</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="editorial-review-stale" class="hidden">Contenido modificado desde el último análisis — guarda para actualizar.</div>
+        <div id="editorial-review-body"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Estadísticas del capítulo -->
   <div id="modal-chapter-stats" class="modal hidden">
     <div class="modal-backdrop"></div>
@@ -1066,6 +1083,7 @@
   <script src="renderer/exportEpub.js"></script>
   <script src="renderer/aiPanel.js"></script>
   <script src="renderer/sceneReview.js"></script>
+  <script src="renderer/editorialReview.js"></script>
   <script src="renderer/newProject.js"></script>
   <script src="renderer/mindMap.js"></script>
   <script src="renderer/tramaTimeline.js"></script>

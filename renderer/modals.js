@@ -1,10 +1,22 @@
 // === SISTEMA DE MODALES ===
 
+// El modal de buscar/reemplazar, el panel de revisión pre-editorial y el
+// panel de Claude comparten la misma esquina inferior derecha — solo uno
+// debe estar visible a la vez para no solaparse.
+function closeOtherFloatingPanels(exceptId) {
+  if (exceptId !== 'modal-find-replace') closeModal('modal-find-replace');
+  if (exceptId !== 'modal-editorial-review') {
+    closeModal('modal-editorial-review');
+    if (typeof clearEditorialHighlightOverlay === 'function') clearEditorialHighlightOverlay();
+  }
+  if (exceptId !== 'ai-panel' && typeof closeAIPanel === 'function') closeAIPanel();
+}
+
 // Abrir modal
 function openModal(modalId) {
   const modal = document.getElementById(modalId);
   modal.classList.remove('hidden');
-  
+
   if (modalId === 'modal-stats') loadStats();
   if (modalId === 'modal-ai-config') loadAIConfig();
   if (modalId === 'modal-prompts-config') preparePromptsConfigModal();
@@ -13,7 +25,8 @@ function openModal(modalId) {
   if (modalId === 'modal-delete') prepareDeleteModal();
   if (modalId === 'modal-new-file') prepareNewFileModal();
   if (modalId === 'modal-move') prepareMoveModal();
-  if (modalId === 'modal-find-replace') prepareFindReplaceModal();
+  if (modalId === 'modal-find-replace') { closeOtherFloatingPanels('modal-find-replace'); prepareFindReplaceModal(); }
+  if (modalId === 'modal-editorial-review') { closeOtherFloatingPanels('modal-editorial-review'); renderEditorialPanel(); }
   if (modalId === 'modal-project-metadata') openProjectMetadataModal();
   if (modalId === 'modal-app-settings') prepareAppSettingsModal();
   if (modalId === 'modal-git-commit') prepareGitCommitModal();

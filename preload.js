@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
   callClaude: (params) => ipcRenderer.invoke('call-claude', params),
   checkOllama: () => ipcRenderer.invoke('check-ollama'),
+  detectAuxiliaryVerbs: (params) => ipcRenderer.invoke('detect-auxiliary-verbs', params),
   
   // Pricing y stats
   getPricing: () => ipcRenderer.invoke('get-pricing'),

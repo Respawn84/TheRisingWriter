@@ -26,6 +26,7 @@ function openTab(file) {
 
   renderTabs();
   loadTabContent(state.activeTabIndex);
+  renderEditorialPanel();
 }
 
 // Activar pestaña específica
@@ -42,6 +43,7 @@ function activateTab(index) {
   state.activeTabIndex = index;
   renderTabs();
   loadTabContent(index);
+  renderEditorialPanel();
 }
 
 // Cerrar pestaña
@@ -73,8 +75,9 @@ function closeTab(index, event) {
   } else if (state.activeTabIndex > index) {
     state.activeTabIndex--;
   }
-  
+
   renderTabs();
+  renderEditorialPanel();
 }
 
 // Renderizar pestañas

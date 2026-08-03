@@ -4,7 +4,8 @@
 async function callClaude(action) {
   const panel = document.getElementById('ai-panel');
   const response = document.getElementById('ai-response');
-  
+
+  if (typeof closeOtherFloatingPanels === 'function') closeOtherFloatingPanels('ai-panel');
   panel.classList.remove('hidden');
   response.innerHTML = '<div class="loading"><div class="spinner"></div><p>Consultando...</p></div>';
   

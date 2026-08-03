@@ -67,6 +67,7 @@ function setupAllListeners() {
   setupFindReplaceListeners();
   setupAIPanelListeners();
   setupSceneReviewListeners();
+  setupEditorialReviewListeners();
   setupNewProjectListeners();
   setupMindMapListeners();
   setupTramaTimelineListeners();

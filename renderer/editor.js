@@ -12,6 +12,9 @@ async function saveCurrentFile() {
     state.currentFileContent = content;
     markTabAsSaved();
     showNotification('Guardado');
+    // Sin await: la revisión pre-editorial corre en segundo plano y no debe
+    // retrasar la sensación de "guardado" ni el timeout de Ollama al usuario.
+    analyzeSceneInBackground(tab.path, content);
   } else {
     showNotification('Error al guardar');
   }
