@@ -1127,13 +1127,50 @@ const AUXILIARY_VERBS_SYSTEM_PROMPT = `Eres un asistente de análisis lingüíst
 
 NO incluyas verbos simples conjugados en una sola palabra funcional, aunque sean de uso muy común: "caminaba", "decidió", "se acercó", "corrió", "llegó", "era" (salvo cuando va seguido de un participio en construcción pasiva, como "era esperado"). Si no ves CLARAMENTE dos verbos juntos en relación auxiliar+principal, no lo incluyas.
 
-Devuelve ÚNICAMENTE un JSON con este formato exacto, sin texto adicional, sin explicaciones y sin bloques de código markdown:
+Devuelve ÚNICAMENTE un JSON con este formato exacto, sin texto adicional, sin explicaciones y sin bloques de código markdown. No pienses en voz alta, no muestres borradores ni correcciones ("espera, reviso de nuevo", "sé más precisa"...): analiza en silencio y escribe solo el JSON final, una única vez.
 {"matches": ["fragmento exacto tal como aparece en el texto", ...]}
 
 Si no encuentras ninguna, devuelve {"matches": []}.`;
 
-// Tolera fences de markdown y texto extra alrededor del JSON: los modelos
-// locales pequeños no siempre respetan "solo JSON" al pie de la letra.
+// Extrae todas las subcadenas "{...}" con llaves balanceadas (ignorando
+// llaves dentro de strings), en vez de un regex codicioso: un regex
+// /\{[\s\S]*\}/ capturaría desde la primera "{" hasta la ÚLTIMA "}" de todo
+// el texto, uniendo por error varios bloques JSON en uno solo si el modelo
+// devuelve más de uno (ver más abajo).
+function extractBalancedJsonObjects(text) {
+  const objects = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  let escapeNext = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escapeNext) { escapeNext = false; continue; }
+    if (ch === '\\' && inString) { escapeNext = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === '}' && depth > 0) {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        objects.push(text.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+  return objects;
+}
+
+// Tolera fences de markdown y texto extra alrededor del JSON. Algunos
+// modelos (incluido Claude) a veces "piensan en voz alta" en el propio texto
+// de respuesta y devuelven varios bloques JSON seguidos (borrador,
+// corrección, versión final) con prosa entre medias — nos quedamos con el
+// ÚLTIMO bloque que parsee correctamente, que es el que el modelo trató como
+// su respuesta definitiva.
 function parseAuxiliaryVerbsResponse(content) {
   const stripped = content.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
 
@@ -1149,10 +1186,10 @@ function parseAuxiliaryVerbsResponse(content) {
   const direct = tryParse(stripped);
   if (direct) return direct;
 
-  const braceMatch = stripped.match(/\{[\s\S]*\}/);
-  if (braceMatch) {
-    const fromBraces = tryParse(braceMatch[0]);
-    if (fromBraces) return fromBraces;
+  const objects = extractBalancedJsonObjects(stripped);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const parsed = tryParse(objects[i]);
+    if (parsed) return parsed;
   }
 
   return null;
