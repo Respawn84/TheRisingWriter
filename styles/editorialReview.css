@@ -28,6 +28,12 @@
   overflow-y: auto;
 }
 
+.editorial-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 #editorial-review-stale {
   margin: 0 0 10px;
   padding: 8px 10px;

@@ -317,6 +317,7 @@ function toggleEditorialPanel() {
 
 function setupEditorialReviewListeners() {
   document.getElementById('btn-editorial-review').addEventListener('click', toggleEditorialPanel);
+  document.getElementById('btn-editorial-clear').addEventListener('click', clearEditorialHighlightOverlay);
 
   // Delegado porque el contenido de #editorial-review-body se regenera en
   // cada render (el botón "Analizar" del modo manual no existe todavía aquí).
