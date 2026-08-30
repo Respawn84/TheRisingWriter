@@ -79,6 +79,10 @@ function createMenu() {
           accelerator: 'CmdOrCtrl+Shift+W',
           click: () => mainWindow.webContents.send('close-project')
         },
+        {
+          label: 'Reparar proyecto...',
+          click: () => mainWindow.webContents.send('repair-project')
+        },
         { type: 'separator' },
         {
           label: 'Guardar',

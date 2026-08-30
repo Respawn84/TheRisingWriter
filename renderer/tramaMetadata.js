@@ -3,13 +3,13 @@
 function isTramaFile(filePath) {
   const tramasRuta = state.projectData?.configuracion?.directorios?.tramas?.ruta;
   if (!tramasRuta || !filePath) return false;
-  return filePath.startsWith(tramasRuta + '/');
+  return pathMatches(filePath, tramasRuta) && !samePath(filePath, tramasRuta);
 }
 
 function getTramaMetadata(filePath) {
   if (!state.projectData) return { estado: 'pendiente', personajes: [], escenaInicio: '', escenaFin: '' };
   if (!state.projectData.metadatosTramas) state.projectData.metadatosTramas = {};
-  return state.projectData.metadatosTramas[filePath] || { estado: 'pendiente', personajes: [], escenaInicio: '', escenaFin: '' };
+  return getByPath(state.projectData.metadatosTramas, filePath) || { estado: 'pendiente', personajes: [], escenaInicio: '', escenaFin: '' };
 }
 
 function getTramaEstadoIcon(estado) {
@@ -65,7 +65,7 @@ function renderTramaMetadataPanel(existing, personajesItems, allScenes) {
   function sceneOptions(selected) {
     return `<option value="">— Ninguna —</option>` +
       allScenes.map(s =>
-        `<option value="${escapeAttr(s.path)}"${s.path === selected ? ' selected' : ''}>${escapeHtml(s.label)}</option>`
+        `<option value="${escapeAttr(s.path)}"${samePath(s.path, selected) ? ' selected' : ''}>${escapeHtml(s.label)}</option>`
       ).join('');
   }
 
@@ -162,10 +162,11 @@ async function saveTramaMetadata(filePath) {
   const estado = document.getElementById('trama-estado')?.value || 'pendiente';
   const personajes = Array.from(document.querySelectorAll('#trama-personajes-list .meta-tag'))
     .map(el => el.dataset.value);
-  const escenaInicio = document.getElementById('trama-escena-inicio')?.value || '';
-  const escenaFin = document.getElementById('trama-escena-fin')?.value || '';
+  // Igual que en los metadatos de escena: la ruta se guarda canónica
+  const escenaInicio = canonPath(document.getElementById('trama-escena-inicio')?.value || '');
+  const escenaFin = canonPath(document.getElementById('trama-escena-fin')?.value || '');
 
-  state.projectData.metadatosTramas[filePath] = { estado, personajes, escenaInicio, escenaFin };
+  setByPath(state.projectData.metadatosTramas, filePath, { estado, personajes, escenaInicio, escenaFin });
 
   const result = await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   if (result.success) {
@@ -178,7 +179,7 @@ async function saveTramaMetadata(filePath) {
 
 // Actualiza el icono del archivo en el árbol sin recargar todo el árbol
 function updateTramaFileIcon(filePath, estado) {
-  const el = document.querySelector(`.file-item[data-path="${CSS.escape(filePath)}"]`);
+  const el = [...document.querySelectorAll('.file-item')].find(e => samePath(e.dataset.path, filePath));
   if (!el) return;
   const iconEl = el.querySelector('.trama-estado-icon');
   if (iconEl) iconEl.textContent = getTramaEstadoIcon(estado);

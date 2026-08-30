@@ -69,7 +69,7 @@ function updateFileIndicator() {
   if (!indicator) return;
   
   if (state.currentFile) {
-    const fileName = state.currentFile.split('/').pop();
+    const fileName = nameFromPath(state.currentFile);
     indicator.textContent = state.hasUnsavedChanges ? `${fileName} •` : fileName;
   }
 }

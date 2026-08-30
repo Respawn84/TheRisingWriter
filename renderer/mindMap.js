@@ -91,7 +91,7 @@ async function buildMindMapData() {
           children: []
         };
 
-        const meta = state.projectData.metadatos?.[scene.path];
+        const meta = getByPath(state.projectData.metadatos, scene.path);
         const personajes = meta?.personajes || [];
 
         for (const nombre of personajes) {
@@ -366,7 +366,7 @@ function setupMindMapInteraction() {
     } else if (type === 'scene') {
       // Escena → abrir en el editor principal como pestaña; el mapa permanece
       if (!filePath) return;
-      const fileName = filePath.split('/').pop();
+      const fileName = nameFromPath(filePath);
       openTab({ name: fileName, path: filePath });
       showNotification(`Escena cargada: ${fileName}`);
 

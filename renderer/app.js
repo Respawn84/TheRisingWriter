@@ -14,7 +14,7 @@ function setupMainEventListeners() {
   window.electronAPI.onRestoreSession(async ({ projectPath, filePath }) => {
     await loadProject(projectPath);
     if (filePath) {
-      const fileName = filePath.split('/').pop();
+      const fileName = nameFromPath(filePath);
       openTab({ name: fileName, path: filePath });
     }
   });
@@ -50,6 +50,10 @@ function setupMainEventListeners() {
   window.electronAPI.onCloseProject(() => {
     closeProject();
   });
+
+  window.electronAPI.onRepairProject(() => {
+    openRepairProjectModal();
+  });
 }
 
 // Inicializar todo
@@ -75,6 +79,7 @@ function setupAllListeners() {
   setupAppSettingsListeners();
   setupPromptsConfigListeners();
   setupGitListeners();
+  setupRepairProjectListeners();
 }
 
 // Cargar al iniciar

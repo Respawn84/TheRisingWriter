@@ -3,6 +3,52 @@
 // Gestión de proyectos JSON
 // ====================================
 
+// === RUTAS CANÓNICAS ===
+//
+// La app compara rutas constantemente (¿es esta la carpeta de capítulos?, ¿qué
+// metadatos tiene esta escena?) y las usa como clave en project.json. Dos rutas
+// que señalan al mismo fichero pueden no ser iguales para "===":
+//
+//  - Normalización Unicode: macOS conserva la forma con la que se creó cada
+//    nombre, así que "Capítulo" puede estar compuesto (í) o descompuesto
+//    (i + tilde suelta). Git convierte de una a otra al clonar en otra máquina,
+//    y editar ficheros fuera de la app introduce la forma del otro editor.
+//  - Separador: Windows usa "\" y el resto "/".
+//
+// canonPath() da una forma única con la que comparar y con la que guardar en
+// project.json. NO vale para nada más: las llamadas al sistema de ficheros usan
+// la ruta tal cual la devuelve readDirectory. Tanto macOS (insensible a la
+// normalización) como Node en Windows (acepta "/") resuelven bien la canónica.
+function canonPath(itemPath) {
+  if (typeof itemPath !== 'string' || !itemPath) return '';
+  const unified = itemPath.normalize('NFC').replace(/\\/g, '/');
+  // Quitar la barra final, pero sin vaciar una raíz ("/" o "C:/")
+  return unified.length > 1 ? unified.replace(/(?!^)\/+$/, '') : unified;
+}
+
+// ¿Dos rutas señalan al mismo sitio?
+function samePath(a, b) {
+  const ca = canonPath(a);
+  return ca !== '' && ca === canonPath(b);
+}
+
+// ¿Dos nombres sueltos (sin ruta) son el mismo? Mismo problema de
+// normalización, pero aquí no hay separadores que unificar.
+function sameName(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  return a.normalize('NFC') === b.normalize('NFC');
+}
+
+// Lectura/escritura en los objetos de project.json indexados por ruta
+// (metadatos, metadatosTramas, estadisticas.capitulos): siempre clave canónica.
+function getByPath(container, itemPath) {
+  return container ? container[canonPath(itemPath)] : undefined;
+}
+
+function setByPath(container, itemPath, value) {
+  if (container) container[canonPath(itemPath)] = value;
+}
+
 // === UTILIDADES ===
 
 // Obtener badge según tipo
@@ -48,15 +94,14 @@ async function loadOrCreateProject(dirPath) {
   console.log('Resultado de loadOrCreateProject:', result);
 
   if (dirPath.endsWith('.json')) {
-    // Si termina en .json, es un fichero: ajustar la ruta raíz del proyecto
-    // quitando el nombre del fichero. En Windows la ruta llega con "\" en vez
-    // de "/", así que hay que buscar el último separador de cualquiera de
-    // los dos tipos (el renderer no tiene acceso al módulo "path" de Node).
-    const lastSep = Math.max(dirPath.lastIndexOf('/'), dirPath.lastIndexOf('\\'));
-    dirPath = dirPath.substring(0, lastSep);
+    // Si termina en .json es un fichero: la raíz del proyecto es su carpeta.
+    // parentPathOf trabaja en forma canónica, así que da igual que la ruta
+    // llegue con "\" (Windows) o con "/".
+    dirPath = parentPathOf(dirPath);
     state.projectRootPath = dirPath;
     state.projectMode = 'json';
   }else{
+    dirPath = canonPath(dirPath);
     state.projectMode = 'folder';
   }
 
@@ -65,6 +110,15 @@ async function loadOrCreateProject(dirPath) {
     state.projectJsonPath = result.path;
     state.projectData = result.data;
     state.projectRootPath = dirPath;
+
+    // Dejar el fichero en forma canónica antes de que nadie compare nada: así
+    // sobrevive a que las rutas hayan entrado con otra normalización o con "\".
+    const canonized = canonicalizeProjectData();
+    if (canonized > 0) {
+      console.log(`project.json: ${canonized} rutas normalizadas`);
+      await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
+    }
+
     state.hasMarkedDirs = hasMarkedDirectories();
     
     if (state.projectMode === 'json') {
@@ -76,7 +130,7 @@ async function loadOrCreateProject(dirPath) {
     }
     console.log(state);
     if (!result.existed) {
-      const jsonName = result.path.split('/').pop();
+      const jsonName = nameFromPath(result.path);
       showNotification(`Proyecto creado: ${jsonName}`);
     }
     
@@ -106,21 +160,21 @@ function filterTreeByProject(items) {
   const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
   tipos.forEach(tipo => {
     if (dirs[tipo]?.ruta && dirs[tipo].ruta !== '') {
-      allowedPaths.add(dirs[tipo].ruta);
+      allowedPaths.add(canonPath(dirs[tipo].ruta));
     }
   });
-  
+
   // Agregar otros
   if (dirs.otros) {
     dirs.otros.forEach(otro => {
       if (otro.mostrar && otro.ruta !== '') {
-        allowedPaths.add(otro.ruta);
+        allowedPaths.add(canonPath(otro.ruta));
       }
     });
   }
-  
-  // Filtrar items
-  return items.filter(item => allowedPaths.has(item.path));
+
+  // Filtrar items (el Set es de rutas canónicas, así que la del disco también)
+  return items.filter(item => allowedPaths.has(canonPath(item.path)));
 }
 
 // Obtener tipo de directorio
@@ -132,14 +186,14 @@ function getDirectoryTypeFromPath(dirPath) {
   // Buscar en tipos específicos
   const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
   for (const tipo of tipos) {
-    if (dirs[tipo]?.ruta === dirPath) {
+    if (samePath(dirs[tipo]?.ruta, dirPath)) {
       return tipo;
     }
   }
-  
+
   // Buscar en otros
   if (dirs.otros) {
-    const found = dirs.otros.find(d => d.ruta === dirPath);
+    const found = dirs.otros.find(d => samePath(d.ruta, dirPath));
     if (found) return 'otro';
   }
   
@@ -197,6 +251,446 @@ async function unmarkDirectory(dirPath) {
     await loadProject(state.projectRootPath);
   } else {
     showNotification('Error al desmarcar: ' + result.error);
+  }
+}
+
+// === MIGRACIÓN DE RUTAS EN project.json ===
+//
+// project.json referencia los ficheros y carpetas del proyecto por su ruta
+// absoluta: el marcado de directorios, los metadatos de capítulo y escena, las
+// relaciones entre escenas, los metadatos de trama y la genealogía. Renombrar
+// desde el árbol dejaba todas esas referencias apuntando a una ruta que ya no
+// existe — el síntoma típico era que el panel de metadatos dejaba de abrirse
+// porque directorios.capitulos.ruta señalaba a la carpeta con el nombre viejo.
+
+// Ruta canónica del contenedor de `itemPath`. Trabaja sobre la forma canónica
+// para no depender del separador del sistema (el renderer no tiene acceso al
+// módulo "path" de Node).
+function parentPathOf(itemPath) {
+  const canon = canonPath(itemPath);
+  const lastSep = canon.lastIndexOf('/');
+  return lastSep <= 0 ? '' : canon.substring(0, lastSep);
+}
+
+// Nombre del fichero o carpeta, sin la ruta.
+function nameFromPath(itemPath) {
+  const canon = canonPath(itemPath);
+  return canon.substring(canon.lastIndexOf('/') + 1);
+}
+
+// Nombre "limpio" con el que los metadatos referencian a personajes y tramas:
+// sin extensión y sin el prefijo numérico de ordenación (igual que
+// loadPersonajesItems / loadTramasItems en metadata.js).
+function cleanItemName(itemPath) {
+  return nameFromPath(itemPath).replace(/\.[^.]+$/, '').replace(/^\d+-/, '');
+}
+
+// ¿`value` es `target` o cuelga de él? Renombrar, mover o borrar una carpeta
+// arrastra las rutas de todo su contenido, no solo la suya.
+function pathMatches(value, target) {
+  const v = canonPath(value), t = canonPath(target);
+  if (!v || !t) return false;
+  return v === t || v.startsWith(t + '/');
+}
+
+// Devuelve la ruta reescrita si `value` se ve afectado por el cambio; null si
+// no le afecta (así se distingue "sin cambio" de "reescrito a lo mismo").
+// Se corta sobre la forma canónica: normalizar puede cambiar la longitud de la
+// cadena, así que trocear la original por la longitud de la vieja desalinearía.
+function remapPath(value, oldPath, newPath) {
+  if (!pathMatches(value, oldPath)) return null;
+  return canonPath(newPath) + canonPath(value).slice(canonPath(oldPath).length);
+}
+
+// Reescribe en state.projectData todas las rutas afectadas por renombrar
+// `oldPath` a `newPath`. Devuelve cuántas referencias han cambiado.
+function migrateProjectPaths(oldPath, newPath) {
+  const data = state.projectData;
+  if (!data || !oldPath || !newPath || oldPath === newPath) return 0;
+
+  let changed = 0;
+
+  // Una ruta suelta guardada en un campo
+  const mapField = (obj, key) => {
+    if (!obj || typeof obj[key] !== 'string') return;
+    const mapped = remapPath(obj[key], oldPath, newPath);
+    if (mapped !== null) { obj[key] = mapped; changed++; }
+  };
+
+  // Un array de rutas
+  const mapList = (obj, key) => {
+    if (!obj || !Array.isArray(obj[key])) return;
+    obj[key] = obj[key].map(value => {
+      const mapped = remapPath(value, oldPath, newPath);
+      if (mapped === null) return value;
+      changed++;
+      return mapped;
+    });
+  };
+
+  // Un objeto {ruta: valor} — la ruta está en la clave
+  const mapKeys = (obj) => {
+    if (!obj) return obj;
+    const out = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const mapped = remapPath(key, oldPath, newPath);
+      if (mapped !== null) changed++;
+      out[mapped !== null ? mapped : key] = value;
+    }
+    return out;
+  };
+
+  // Directorios marcados
+  const dirs = data.configuracion?.directorios;
+  if (dirs) {
+    ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'].forEach(tipo => {
+      mapField(dirs[tipo], 'ruta');
+    });
+    (dirs.otros || []).forEach(otro => mapField(otro, 'ruta'));
+  }
+
+  // Orden de carpetas raíz y estadísticas cacheadas por capítulo
+  mapList(data.configuracion, 'ordenCarpetas');
+  if (data.configuracion?.estadisticas?.capitulos) {
+    data.configuracion.estadisticas.capitulos = mapKeys(data.configuracion.estadisticas.capitulos);
+  }
+
+  // Metadatos de capítulo y escena: la clave es la ruta de la carpeta o del
+  // fichero, y dentro hay más rutas de escena (posición en la trama).
+  if (data.metadatos) {
+    data.metadatos = mapKeys(data.metadatos);
+    for (const meta of Object.values(data.metadatos)) {
+      mapField(meta, 'escenaAnterior');
+      mapField(meta, 'escenaSiguiente');
+      mapList(meta, 'relacionesAnteriores');
+      mapList(meta, 'relacionesPosteriores');
+    }
+  }
+
+  // Metadatos de trama: clave = fichero de trama, dentro rutas de escena
+  if (data.metadatosTramas) {
+    data.metadatosTramas = mapKeys(data.metadatosTramas);
+    for (const meta of Object.values(data.metadatosTramas)) {
+      mapField(meta, 'escenaInicio');
+      mapField(meta, 'escenaFin');
+    }
+  }
+
+  // Genealogía: cada persona puede enlazar a su ficha de personaje
+  (data.genealogia?.personas || []).forEach(persona => mapField(persona, 'personajePath'));
+
+  return changed;
+}
+
+// Pasa a forma canónica todas las rutas guardadas en project.json. Se ejecuta
+// al cargar el proyecto: así el fichero converge solo aunque le hayan entrado
+// rutas con otra normalización o con "\" (git en otra máquina, edición desde
+// fuera de la app). Es idempotente. Devuelve cuántas rutas ha tocado.
+function canonicalizeProjectData() {
+  const data = state.projectData;
+  if (!data) return 0;
+
+  let changed = 0;
+
+  const canonField = (obj, key) => {
+    if (!obj || typeof obj[key] !== 'string' || !obj[key]) return;
+    const canon = canonPath(obj[key]);
+    if (canon !== obj[key]) { obj[key] = canon; changed++; }
+  };
+  const canonList = (obj, key) => {
+    if (!obj || !Array.isArray(obj[key])) return;
+    obj[key] = obj[key].map(value => {
+      if (typeof value !== 'string' || !value) return value;
+      const canon = canonPath(value);
+      if (canon !== value) changed++;
+      return canon;
+    });
+  };
+  // Si dos claves colapsan en la misma canónica son la misma entrada: gana la
+  // primera, que es la que el resto del fichero ya venía referenciando.
+  const canonKeys = (obj) => {
+    if (!obj) return obj;
+    const out = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const canon = canonPath(key);
+      if (canon !== key) changed++;
+      if (!Object.prototype.hasOwnProperty.call(out, canon)) out[canon] = value;
+    }
+    return out;
+  };
+
+  const dirs = data.configuracion?.directorios;
+  if (dirs) {
+    ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'].forEach(tipo => canonField(dirs[tipo], 'ruta'));
+    (dirs.otros || []).forEach(otro => canonField(otro, 'ruta'));
+  }
+
+  canonList(data.configuracion, 'ordenCarpetas');
+  if (data.configuracion?.estadisticas?.capitulos) {
+    data.configuracion.estadisticas.capitulos = canonKeys(data.configuracion.estadisticas.capitulos);
+  }
+
+  if (data.metadatos) {
+    data.metadatos = canonKeys(data.metadatos);
+    for (const meta of Object.values(data.metadatos)) {
+      canonField(meta, 'escenaAnterior');
+      canonField(meta, 'escenaSiguiente');
+      canonList(meta, 'relacionesAnteriores');
+      canonList(meta, 'relacionesPosteriores');
+    }
+  }
+
+  if (data.metadatosTramas) {
+    data.metadatosTramas = canonKeys(data.metadatosTramas);
+    for (const meta of Object.values(data.metadatosTramas)) {
+      canonField(meta, 'escenaInicio');
+      canonField(meta, 'escenaFin');
+    }
+  }
+
+  (data.genealogia?.personas || []).forEach(persona => canonField(persona, 'personajePath'));
+
+  return changed;
+}
+
+// Elimina de project.json toda referencia a `deletedPath` y a lo que colgara
+// de él. Devuelve cuántas referencias se han quitado.
+function removeProjectPaths(deletedPath) {
+  const data = state.projectData;
+  if (!data || !deletedPath) return 0;
+
+  let changed = 0;
+
+  // Una ruta suelta guardada en un campo -> se vacía
+  const clearField = (obj, key) => {
+    if (!obj || typeof obj[key] !== 'string') return;
+    if (pathMatches(obj[key], deletedPath)) { obj[key] = ''; changed++; }
+  };
+
+  // Un array de rutas -> se filtran las afectadas
+  const filterList = (obj, key) => {
+    if (!obj || !Array.isArray(obj[key])) return;
+    const kept = obj[key].filter(value => !pathMatches(value, deletedPath));
+    if (kept.length === obj[key].length) return;
+    changed += obj[key].length - kept.length;
+    obj[key] = kept;
+  };
+
+  // Un objeto {ruta: valor} -> se borran las claves afectadas
+  const dropKeys = (obj) => {
+    if (!obj) return obj;
+    const out = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (pathMatches(key, deletedPath)) { changed++; continue; }
+      out[key] = value;
+    }
+    return out;
+  };
+
+  const dirs = data.configuracion?.directorios;
+  if (dirs) {
+    ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'].forEach(tipo => {
+      clearField(dirs[tipo], 'ruta');
+    });
+    if (Array.isArray(dirs.otros)) {
+      const kept = dirs.otros.filter(otro => !pathMatches(otro?.ruta, deletedPath));
+      changed += dirs.otros.length - kept.length;
+      dirs.otros = kept;
+    }
+  }
+
+  filterList(data.configuracion, 'ordenCarpetas');
+  if (data.configuracion?.estadisticas?.capitulos) {
+    data.configuracion.estadisticas.capitulos = dropKeys(data.configuracion.estadisticas.capitulos);
+  }
+
+  if (data.metadatos) {
+    data.metadatos = dropKeys(data.metadatos);
+    for (const meta of Object.values(data.metadatos)) {
+      clearField(meta, 'escenaAnterior');
+      clearField(meta, 'escenaSiguiente');
+      filterList(meta, 'relacionesAnteriores');
+      filterList(meta, 'relacionesPosteriores');
+    }
+  }
+
+  if (data.metadatosTramas) {
+    data.metadatosTramas = dropKeys(data.metadatosTramas);
+    for (const meta of Object.values(data.metadatosTramas)) {
+      clearField(meta, 'escenaInicio');
+      clearField(meta, 'escenaFin');
+    }
+  }
+
+  (data.genealogia?.personas || []).forEach(persona => clearField(persona, 'personajePath'));
+
+  return changed;
+}
+
+// Los chips de personajes y tramas de los metadatos no guardan la ruta, sino el
+// nombre limpio del fichero. `itemPath` decide a qué lista pertenecen mirando
+// en qué directorio marcado vive; null si no es ficha de personaje ni de trama.
+function chipFieldForPath(itemPath) {
+  const dirs = state.projectData?.configuracion?.directorios;
+  const parent = parentPathOf(itemPath || '');
+  if (samePath(parent, dirs?.personajes?.ruta)) return 'personajes';
+  if (samePath(parent, dirs?.tramas?.ruta)) return 'tramas';
+  return null;
+}
+
+// Reescribe (o elimina, si `newName` es null) los chips que citan `oldName`.
+function updateMetadataChips(campo, oldName, newName) {
+  const data = state.projectData;
+  if (!data || !campo || !oldName || oldName === newName) return 0;
+
+  let changed = 0;
+  const apply = (meta) => {
+    if (!meta || !Array.isArray(meta[campo])) return;
+    if (newName === null) {
+      const kept = meta[campo].filter(nombre => nombre !== oldName);
+      changed += meta[campo].length - kept.length;
+      meta[campo] = kept;
+      return;
+    }
+    meta[campo] = meta[campo].map(nombre => {
+      if (nombre !== oldName) return nombre;
+      changed++;
+      return newName;
+    });
+  };
+
+  Object.values(data.metadatos || {}).forEach(apply);
+
+  // Los metadatos de trama también listan personajes por nombre
+  if (campo === 'personajes') {
+    Object.values(data.metadatosTramas || {}).forEach(apply);
+  }
+
+  return changed;
+}
+
+// Renombrar la ficha de un personaje o una trama deja sus chips huérfanos, así
+// que se migran aparte de las rutas. Hay que llamarla ANTES de
+// migrateProjectPaths: chipFieldForPath compara contra
+// directorios.{personajes,tramas}.ruta, que aún no están migrados.
+function migrateMetadataItemNames(oldPath, newPath) {
+  const campo = chipFieldForPath(oldPath);
+  if (!campo) return 0;
+  return updateMetadataChips(campo, cleanItemName(oldPath), cleanItemName(newPath));
+}
+
+// Contrapartida al borrar: quita el chip en vez de reescribirlo.
+function removeMetadataItemNames(deletedPath) {
+  const campo = chipFieldForPath(deletedPath);
+  if (!campo) return 0;
+  return updateMetadataChips(campo, cleanItemName(deletedPath), null);
+}
+
+// Guarda project.json tras una migración/limpieza en memoria.
+async function persistProjectReferences(changed) {
+  if (changed === 0) return 0;
+
+  const result = await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
+  if (!result.success) {
+    showNotification('Error al actualizar las referencias del proyecto');
+    return 0;
+  }
+
+  state.hasMarkedDirs = hasMarkedDirectories();
+  return changed;
+}
+
+// Punto de entrada tras renombrar o mover. Devuelve el nº de referencias
+// actualizadas (0 = no se ha tocado el fichero).
+async function migrateProjectReferences(oldPath, newPath) {
+  if (!state.projectData || !state.projectJsonPath) return 0;
+  if (!oldPath || !newPath || oldPath === newPath) return 0;
+
+  // El orden importa: los nombres se resuelven con los directorios sin migrar.
+  const changed = migrateMetadataItemNames(oldPath, newPath) + migrateProjectPaths(oldPath, newPath);
+  return persistProjectReferences(changed);
+}
+
+// Punto de entrada tras borrar.
+async function removeProjectReferences(deletedPath) {
+  if (!state.projectData || !state.projectJsonPath || !deletedPath) return 0;
+
+  const changed = removeMetadataItemNames(deletedPath) + removeProjectPaths(deletedPath);
+  return persistProjectReferences(changed);
+}
+
+// === ESTADO EN MEMORIA ===
+//
+// Las pestañas abiertas, el fichero en edición y el panel derecho también
+// guardan rutas. Sin actualizarlas, renombrar un fichero abierto dejaba la
+// pestaña apuntando al nombre viejo y el siguiente guardado recreaba el
+// fichero con el nombre anterior.
+
+function migrateOpenStatePaths(oldPath, newPath) {
+  if (!oldPath || !newPath || oldPath === newPath) return;
+
+  if (typeof remapEditorialCachePaths === 'function') {
+    remapEditorialCachePaths(oldPath, newPath);
+  }
+
+  let tabsChanged = false;
+  (state.openTabs || []).forEach(tab => {
+    const mapped = remapPath(tab.path, oldPath, newPath);
+    if (mapped === null) return;
+    tab.path = mapped;
+    tab.name = nameFromPath(mapped);
+    tabsChanged = true;
+  });
+
+  state.currentFile         = remapPath(state.currentFile, oldPath, newPath)         ?? state.currentFile;
+  state.splitFile           = remapPath(state.splitFile, oldPath, newPath)           ?? state.splitFile;
+  state.splitMetadataFolder = remapPath(state.splitMetadataFolder, oldPath, newPath) ?? state.splitMetadataFolder;
+
+  const item = state.splitMetadataItem;
+  if (item?.path) {
+    const mapped = remapPath(item.path, oldPath, newPath);
+    if (mapped !== null) {
+      item.path = mapped;
+      item.name = nameFromPath(mapped);
+    }
+  }
+
+  if (tabsChanged) {
+    renderTabs();
+    updateFileIndicator();
+    if (state.currentFile) window.electronAPI.saveLastFile(state.currentFile);
+  }
+}
+
+// Contrapartida al borrar: cierra las pestañas afectadas y suelta el split.
+function dropOpenStatePaths(deletedPath) {
+  if (!deletedPath) return;
+
+  if (typeof removeEditorialCachePaths === 'function') {
+    removeEditorialCachePaths(deletedPath);
+  }
+
+  const tabs = state.openTabs || [];
+  const activePath = getActiveTab()?.path || null;
+  const kept = tabs.filter(tab => !pathMatches(tab.path, deletedPath));
+
+  if (kept.length !== tabs.length) {
+    state.openTabs = kept;
+    // Mantener activa la misma pestaña si ha sobrevivido
+    const stillOpen = activePath ? kept.findIndex(tab => samePath(tab.path, activePath)) : -1;
+    state.activeTabIndex = stillOpen !== -1 ? stillOpen : (kept.length ? 0 : -1);
+    state.hasUnsavedChanges = false;
+    renderTabs();
+    loadTabContent(state.activeTabIndex);
+  }
+
+  if (pathMatches(state.currentFile, deletedPath)) state.currentFile = null;
+
+  if (pathMatches(state.splitFile, deletedPath) ||
+      pathMatches(state.splitMetadataFolder, deletedPath)) {
+    closeSplit();
+    state.splitMetadataFolder = null;
+    state.splitMetadataItem = null;
   }
 }
 
@@ -383,12 +877,11 @@ function isChapterFolder(folderPath) {
   if (!state.projectData) return false;
   const capitulosRuta = state.projectData.configuracion.directorios.capitulos?.ruta;
   if (!capitulosRuta) return false;
-  const parentPath = folderPath.substring(0, folderPath.lastIndexOf('/'));
-  return parentPath === capitulosRuta;
+  return samePath(parentPathOf(folderPath), capitulosRuta);
 }
 
 async function openChapterStats(folderPath) {
-  const cached = state.projectData?.configuracion?.estadisticas?.capitulos?.[folderPath];
+  const cached = getByPath(state.projectData?.configuracion?.estadisticas?.capitulos, folderPath);
   if (cached) {
     showChapterStatsModal(folderPath, cached);
   } else {
@@ -417,7 +910,7 @@ async function calculateAndShowChapterStats(folderPath) {
     if (!state.projectData.configuracion.estadisticas.capitulos) {
       state.projectData.configuracion.estadisticas.capitulos = {};
     }
-    state.projectData.configuracion.estadisticas.capitulos[folderPath] = stats;
+    setByPath(state.projectData.configuracion.estadisticas.capitulos, folderPath, stats);
     await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   }
 
@@ -425,7 +918,7 @@ async function calculateAndShowChapterStats(folderPath) {
 }
 
 function showChapterStatsModal(folderPath, stats) {
-  const name = folderPath.split('/').pop();
+  const name = nameFromPath(folderPath);
   document.getElementById('chapter-stats-name').textContent = name;
   document.getElementById('chapter-stat-scenes').textContent = stats.escenas;
   document.getElementById('chapter-stat-words').textContent = stats.palabras.toLocaleString('es-ES');
@@ -440,7 +933,7 @@ function showChapterStatsModal(folderPath, stats) {
 let _wordFreqData = [];  // caché en memoria para filtrado rápido
 
 async function openWordFreqModal(folderPath) {
-  const cached = state.projectData?.configuracion?.estadisticas?.capitulos?.[folderPath]?.frecuenciaPalabras;
+  const cached = getByPath(state.projectData?.configuracion?.estadisticas?.capitulos, folderPath)?.frecuenciaPalabras;
   if (cached && cached.length > 0) {
     showWordFreqModal(folderPath, cached);
   } else {
@@ -451,7 +944,7 @@ async function openWordFreqModal(folderPath) {
 async function calculateAndShowWordFreq(folderPath) {
   document.getElementById('word-freq-summary').textContent = 'Calculando…';
   openModal('modal-word-freq');
-  document.getElementById('word-freq-chapter-name').textContent = folderPath.split('/').pop();
+  document.getElementById('word-freq-chapter-name').textContent = nameFromPath(folderPath);
 
   const settings = await window.electronAPI.getAppSettings();
   const minLetters = settings.wordFreqMinLetters ?? 4;
@@ -465,10 +958,13 @@ async function calculateAndShowWordFreq(folderPath) {
   if (state.projectData && state.projectJsonPath) {
     if (!state.projectData.configuracion.estadisticas) state.projectData.configuracion.estadisticas = {};
     if (!state.projectData.configuracion.estadisticas.capitulos) state.projectData.configuracion.estadisticas.capitulos = {};
-    if (!state.projectData.configuracion.estadisticas.capitulos[folderPath]) state.projectData.configuracion.estadisticas.capitulos[folderPath] = {};
-    state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaPalabras = result.words;
-    state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaCalculado = new Date().toISOString().split('T')[0];
-    state.projectData.configuracion.estadisticas.capitulos[folderPath].frecuenciaMinLetras = minLetters;
+    const capitulos = state.projectData.configuracion.estadisticas.capitulos;
+    if (!getByPath(capitulos, folderPath)) setByPath(capitulos, folderPath, {});
+    Object.assign(getByPath(capitulos, folderPath), {
+      frecuenciaPalabras: result.words,
+      frecuenciaCalculado: new Date().toISOString().split('T')[0],
+      frecuenciaMinLetras: minLetters
+    });
     await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   }
 
@@ -476,11 +972,11 @@ async function calculateAndShowWordFreq(folderPath) {
 }
 
 function showWordFreqModal(folderPath, words) {
-  const name = folderPath.split('/').pop();
+  const name = nameFromPath(folderPath);
   document.getElementById('word-freq-chapter-name').textContent = name;
   _wordFreqData = words;
 
-  const fecha = state.projectData?.configuracion?.estadisticas?.capitulos?.[folderPath]?.frecuenciaCalculado;
+  const fecha = getByPath(state.projectData?.configuracion?.estadisticas?.capitulos, folderPath)?.frecuenciaCalculado;
   document.getElementById('word-freq-date').textContent = fecha ? `Calculado el ${fecha}` : '';
   document.getElementById('btn-recalculate-word-freq').onclick = () => calculateAndShowWordFreq(folderPath);
 
@@ -596,6 +1092,25 @@ if (typeof module !== 'undefined' && module.exports) {
     getTypeBadge,
     isChapterFolder,
     openChapterStats,
-    openWordFreqModal
+    openWordFreqModal,
+    canonPath,
+    samePath,
+    sameName,
+    getByPath,
+    setByPath,
+    canonicalizeProjectData,
+    parentPathOf,
+    nameFromPath,
+    cleanItemName,
+    pathMatches,
+    remapPath,
+    migrateProjectPaths,
+    migrateMetadataItemNames,
+    migrateProjectReferences,
+    removeProjectPaths,
+    removeMetadataItemNames,
+    removeProjectReferences,
+    migrateOpenStatePaths,
+    dropOpenStatePaths
   };
 }

@@ -5,7 +5,7 @@ function openTab(file) {
   window.electronAPI.saveLastFile(file.path);
 
   // Buscar si ya existe
-  const existingIndex = state.openTabs.findIndex(tab => tab.path === file.path);
+  const existingIndex = state.openTabs.findIndex(tab => samePath(tab.path, file.path));
 
   if (existingIndex !== -1) {
     // Ya existe, solo activarla

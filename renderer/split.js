@@ -78,8 +78,9 @@ async function loadSplitFile(filePath) {
     editor.innerHTML = isMd
       ? renderMarkdownSections(result.content)
       : renderCollapsibleSections(result.content);
-    fileName.textContent = `📄 ${filePath.split('/').pop()}`;
-    showNotification(`Referencia cargada: ${filePath.split('/').pop()}`);
+    const shortName = nameFromPath(filePath);
+    fileName.textContent = `📄 ${shortName}`;
+    showNotification(`Referencia cargada: ${shortName}`);
   } else {
     showNotification(`Error al leer referencia`);
     editor.innerHTML = '<p class="split-error">Error al cargar archivo</p>';

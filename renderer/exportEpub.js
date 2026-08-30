@@ -25,7 +25,7 @@ async function exportNovelToEpub() {
   if (result.canceled) return;
 
   if (result.success) {
-    const fileName = result.path.split('/').pop();
+    const fileName = nameFromPath(result.path);
     showNotification(`✓ Exportado: ${fileName}`);
   } else {
     showNotification(`Error al exportar: ${result.error}`);

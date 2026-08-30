@@ -35,9 +35,10 @@ function applyFolderOrder(items) {
   const dirs = items.filter(i => i.isDirectory);
   const files = items.filter(i => !i.isDirectory);
 
+  const canonOrder = order.map(canonPath);
   dirs.sort((a, b) => {
-    const ai = order.indexOf(a.path);
-    const bi = order.indexOf(b.path);
+    const ai = canonOrder.indexOf(canonPath(a.path));
+    const bi = canonOrder.indexOf(canonPath(b.path));
     if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
     if (ai === -1) return 1;
     if (bi === -1) return -1;
@@ -52,13 +53,13 @@ async function moveFolderInOrder(dirPath, direction) {
   if (!state.projectData || !state.projectJsonPath) return;
 
   const items = await window.electronAPI.readDirectory(state.projectRootPath);
-  const allDirPaths = items.filter(i => i.isDirectory).map(i => i.path);
+  const allDirPaths = items.filter(i => i.isDirectory).map(i => canonPath(i.path));
 
-  let order = [...(state.projectData.configuracion.ordenCarpetas || [])];
+  let order = [...(state.projectData.configuracion.ordenCarpetas || [])].map(canonPath);
 
   // Inicializar con el orden actual si está vacío
   if (order.length === 0) {
-    order = applyFolderOrder(items).filter(i => i.isDirectory).map(i => i.path);
+    order = applyFolderOrder(items).filter(i => i.isDirectory).map(i => canonPath(i.path));
   } else {
     // Añadir entradas nuevas al final, limpiar rutas obsoletas
     for (const p of allDirPaths) {
@@ -67,7 +68,7 @@ async function moveFolderInOrder(dirPath, direction) {
     order = order.filter(p => allDirPaths.includes(p));
   }
 
-  const idx = order.indexOf(dirPath);
+  const idx = order.indexOf(canonPath(dirPath));
   if (idx === -1) return;
 
   if (direction === 'up' && idx > 0) {
@@ -95,15 +96,15 @@ async function syncPhysicalFolders() {
   // Recopilar todas las rutas ya rastreadas
   const trackedPaths = new Set();
   const tipos = ['capitulos', 'personajes', 'tramas', 'mundo', 'papelera'];
-  tipos.forEach(t => { if (dirs[t]?.ruta) trackedPaths.add(dirs[t].ruta); });
-  (dirs.otros || []).forEach(o => trackedPaths.add(o.ruta));
+  tipos.forEach(t => { if (dirs[t]?.ruta) trackedPaths.add(canonPath(dirs[t].ruta)); });
+  (dirs.otros || []).forEach(o => trackedPaths.add(canonPath(o.ruta)));
 
   // Añadir las no rastreadas
   let added = false;
   for (const folder of physicalFolders) {
-    if (!trackedPaths.has(folder.path)) {
+    if (!trackedPaths.has(canonPath(folder.path))) {
       if (!dirs.otros) dirs.otros = [];
-      dirs.otros.push({ ruta: folder.path, mostrar: true });
+      dirs.otros.push({ ruta: canonPath(folder.path), mostrar: true });
       added = true;
     }
   }
@@ -129,11 +130,10 @@ async function handleFileDrop(dragData, destFolderPath) {
   const { path: sourcePath, name: sourceName, isDirectory } = dragData;
 
   // No-op: misma carpeta padre
-  const sourceParent = sourcePath.substring(0, sourcePath.lastIndexOf('/'));
-  if (sourceParent === destFolderPath) return;
+  if (samePath(parentPathOf(sourcePath), destFolderPath)) return;
 
   // Evitar mover una carpeta dentro de sí misma o de un descendiente
-  if (isDirectory && (destFolderPath === sourcePath || destFolderPath.startsWith(sourcePath + '/'))) {
+  if (isDirectory && pathMatches(destFolderPath, sourcePath)) {
     showErrorNotification('No se puede mover una carpeta dentro de sí misma');
     return;
   }
@@ -147,7 +147,7 @@ async function handleFileDrop(dragData, destFolderPath) {
     return;
   }
 
-  if (destItems.some(item => item.name === sourceName)) {
+  if (destItems.some(item => sameName(item.name, sourceName))) {
     showErrorNotification(`"${sourceName}" ya existe en la carpeta destino`);
     return;
   }
@@ -155,9 +155,15 @@ async function handleFileDrop(dragData, destFolderPath) {
   // Mover
   const result = await window.electronAPI.moveItem(sourcePath, destFolderPath);
   if (result.success) {
-    if (state.currentFile === sourcePath) state.currentFile = result.path;
-    showNotification(`Movido: ${sourceName}`);
-    await reloadPreservingExpanded();
+    // Mover cambia la ruta igual que renombrar: hay que arrastrar con ella las
+    // referencias de project.json y el estado en memoria.
+    const migrated = await migrateProjectReferences(sourcePath, result.path);
+    migrateOpenStatePaths(sourcePath, result.path);
+
+    showNotification(migrated > 0
+      ? `Movido: ${sourceName} (${migrated} referencias actualizadas)`
+      : `Movido: ${sourceName}`);
+    await reloadPreservingExpanded(isDirectory ? sourcePath : null, isDirectory ? result.path : null);
   } else {
     showErrorNotification(`Error al mover: ${result.error || 'desconocido'}`);
   }
@@ -230,7 +236,10 @@ function getExpandedPaths() {
 
 // Expande programáticamente una carpeta por su ruta (si ya está en el DOM)
 async function expandFolderByPath(folderPath) {
-  const folderEl = document.querySelector(`.folder-item[data-path="${CSS.escape(folderPath)}"]`);
+  // data-path lleva la ruta tal cual la da el disco, así que no sirve un
+  // selector CSS por igualdad exacta: hay que comparar en forma canónica.
+  const folderEl = [...document.querySelectorAll('.folder-item')]
+    .find(el => samePath(el.dataset.path, folderPath));
   if (!folderEl || folderEl.classList.contains('expanded')) return;
 
   const paddingLeft = parseInt(folderEl.style.paddingLeft) || 8;
@@ -252,15 +261,11 @@ async function reloadPreservingExpanded(renamedFrom = null, renamedTo = null) {
   let expandedPaths = getExpandedPaths();
 
   if (renamedFrom && renamedTo) {
-    expandedPaths = expandedPaths.map(p => {
-      if (p === renamedFrom) return renamedTo;
-      if (p.startsWith(renamedFrom + '/')) return renamedTo + p.slice(renamedFrom.length);
-      return p;
-    });
+    expandedPaths = expandedPaths.map(p => remapPath(p, renamedFrom, renamedTo) ?? p);
   }
 
   // Expandir de más superficial a más profundo (los padres deben existir en el DOM antes que los hijos)
-  expandedPaths.sort((a, b) => a.split('/').length - b.split('/').length);
+  expandedPaths.sort((a, b) => canonPath(a).split('/').length - canonPath(b).split('/').length);
 
   await loadProject(state.projectPath);
 
@@ -345,7 +350,7 @@ function createFileElement(file, level) {
 
   let iconHtml;
   if (isTramaFile(file.path)) {
-    const meta = state.projectData?.metadatosTramas?.[file.path];
+    const meta = getByPath(state.projectData?.metadatosTramas, file.path);
     const icon = getTramaEstadoIcon(meta?.estado || 'pendiente');
     const label = getTramaEstadoLabel(meta?.estado || 'pendiente');
     iconHtml = `<span class="trama-estado-icon" title="${label}">${icon}</span>`;
@@ -401,11 +406,8 @@ async function openFile(file) {
 
   // Mostrar metadatos automáticamente según tipo de fichero
   const capitulosRuta = state.projectData?.configuracion?.directorios?.capitulos?.ruta;
-  const fileIsScene = !file.isDirectory && capitulosRuta && (() => {
-    const parent = file.path.substring(0, file.path.lastIndexOf('/'));
-    const grandparent = parent.substring(0, parent.lastIndexOf('/'));
-    return grandparent === capitulosRuta;
-  })();
+  const fileIsScene = !file.isDirectory && capitulosRuta &&
+    samePath(parentPathOf(parentPathOf(file.path)), capitulosRuta);
 
   if (fileIsScene) {
     openSceneMetadataPanel(file);
@@ -442,13 +444,11 @@ function showFileContextMenu(e, item) {
   // Detectar si es una carpeta de capítulo (hija directa del directorio capitulos)
   const capitulosRuta = state.projectData?.configuracion?.directorios?.capitulos?.ruta;
   const isChapterFolder = item.isDirectory && capitulosRuta &&
-    item.path.substring(0, item.path.lastIndexOf('/')) === capitulosRuta;
+    samePath(parentPathOf(item.path), capitulosRuta);
 
   // Detectar si es un fichero de escena (archivo dentro de una carpeta de capítulo)
   const isSceneFile = !item.isDirectory && capitulosRuta && (() => {
-    const parent = item.path.substring(0, item.path.lastIndexOf('/'));
-    const grandparent = parent.substring(0, parent.lastIndexOf('/'));
-    return grandparent === capitulosRuta;
+    return samePath(parentPathOf(parentPathOf(item.path)), capitulosRuta);
   })();
 
   const newChapterBtn = menu.querySelector('[data-action="new-chapter"]');
@@ -501,7 +501,7 @@ function showFileContextMenu(e, item) {
 
   // Mostrar "Subir / Bajar" solo para carpetas de primer nivel
   const isRootFolder = item.isDirectory &&
-    item.path.substring(0, item.path.lastIndexOf('/')) === state.projectRootPath;
+    samePath(parentPathOf(item.path), state.projectRootPath);
   document.getElementById('menu-order-section').style.display = isRootFolder ? '' : 'none';
 }
 
@@ -550,7 +550,7 @@ async function confirmRename() {
     return;
   }
   
-  if (newName === state.itemToRename.name) {
+  if (sameName(newName, state.itemToRename.name)) {
     closeModal('modal-rename');
     return;
   }
@@ -560,12 +560,22 @@ async function confirmRename() {
   if (result.success) {
     const wasDirectory = state.itemToRename.isDirectory;
     const oldPath = state.itemToRename.path;
-    const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/'));
-    const newPath = parentDir + '/' + newName;
+    // result.path lo calcula el proceso principal con path.join, así que
+    // respeta el separador del sistema. El cálculo a mano es solo un repliegue.
+    const newPath = result.path || parentPathOf(oldPath) + '/' + newName;
 
     closeModal('modal-rename');
-    showNotification(`Renombrado a: ${newName}`);
     state.itemToRename = null;
+
+    // project.json referencia todo por ruta absoluta (directorios marcados,
+    // metadatos de capítulo/escena/trama, relaciones, genealogía): hay que
+    // reescribirlo antes de recargar el árbol.
+    const migrated = await migrateProjectReferences(oldPath, newPath);
+    migrateOpenStatePaths(oldPath, newPath);
+
+    showNotification(migrated > 0
+      ? `Renombrado a: ${newName} (${migrated} referencias actualizadas)`
+      : `Renombrado a: ${newName}`);
 
     // Para carpetas, sustituir rutas expandidas afectadas (path cascade)
     await reloadPreservingExpanded(wasDirectory ? oldPath : null, wasDirectory ? newPath : null);
@@ -582,18 +592,20 @@ async function confirmDelete() {
   const result = await window.electronAPI.deleteItem(state.itemToRename.path);
   
   if (result.success) {
-    closeModal('modal-delete');
-    showNotification('Elemento borrado');
-    
-    // Si es el archivo actual, limpiar editor
-    if (state.currentFile === state.itemToRename.path) {
-      state.currentFile = null;
-      state.currentFileContent = '';
-      document.getElementById('editor').value = '';
-      document.getElementById('file-name').textContent = 'Sin archivo';
-    }
+    const deletedPath = state.itemToRename.path;
 
+    closeModal('modal-delete');
     state.itemToRename = null;
+
+    // Cierra pestañas y split que colgaran de lo borrado, y limpia de
+    // project.json las referencias que ahora apuntarían a la nada.
+    dropOpenStatePaths(deletedPath);
+    const removed = await removeProjectReferences(deletedPath);
+
+    showNotification(removed > 0
+      ? `Elemento borrado (${removed} referencias eliminadas)`
+      : 'Elemento borrado');
+
     await reloadPreservingExpanded();
   } else {
     alert(`Error al borrar: ${result.error}`);

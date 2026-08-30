@@ -19,16 +19,13 @@ async function prepareMoveModal() {
   selectEl.innerHTML = '<option value="">-- Selecciona carpeta --</option>';
   
   folders.forEach(folder => {
-    // No permitir mover a sí mismo si es carpeta
-    if (state.itemToRename.isDirectory && folder.path === state.itemToRename.path) {
+    // Si es carpeta, no permitir moverla a sí misma ni a una descendiente
+    // (pathMatches ya cubre el caso de igualdad)
+    if (state.itemToRename.isDirectory && pathMatches(folder.path, state.itemToRename.path)) {
       return;
     }
-    
-    // No permitir mover a carpetas hijas si es carpeta
-    if (state.itemToRename.isDirectory && folder.path.startsWith(state.itemToRename.path + '/')) {
-      return;
-    }
-    
+
+
     const option = document.createElement('option');
     option.value = folder.path;
     option.textContent = folder.name;
@@ -52,16 +49,24 @@ async function confirmMove() {
   const result = await window.electronAPI.moveItem(state.itemToRename.path, destination);
   
   if (result.success) {
-    closeModal('modal-move');
-    showNotification(`Movido a: ${destination.split('/').pop()}`);
-    
-    // Si es el archivo actual, actualizar path
-    if (state.currentFile === state.itemToRename.path) {
-      state.currentFile = result.path;
-    }
+    const wasDirectory = state.itemToRename.isDirectory;
+    const oldPath = state.itemToRename.path;
+    const newPath = result.path;
 
+    closeModal('modal-move');
     state.itemToRename = null;
-    await reloadPreservingExpanded();
+
+    // Mover cambia la ruta igual que renombrar: hay que arrastrar con ella las
+    // referencias de project.json y el estado en memoria.
+    const migrated = await migrateProjectReferences(oldPath, newPath);
+    migrateOpenStatePaths(oldPath, newPath);
+
+    const destName = nameFromPath(destination);
+    showNotification(migrated > 0
+      ? `Movido a: ${destName} (${migrated} referencias actualizadas)`
+      : `Movido a: ${destName}`);
+
+    await reloadPreservingExpanded(wasDirectory ? oldPath : null, wasDirectory ? newPath : null);
   } else {
     errorDiv.textContent = result.error || 'Error al mover';
     errorDiv.classList.remove('hidden');

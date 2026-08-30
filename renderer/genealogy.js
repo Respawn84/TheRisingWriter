@@ -804,7 +804,7 @@ async function genOpenEditor(personaId) {
 
   const personajeOpts = ['<option value="">— Sin vínculo —</option>']
     .concat(personajes.map(f =>
-      `<option value="${genEscapeXml(f.path)}" ${f.path === p.personajePath ? 'selected' : ''}>${genEscapeXml(f.name)}</option>`))
+      `<option value="${genEscapeXml(f.path)}" ${samePath(f.path, p.personajePath) ? 'selected' : ''}>${genEscapeXml(f.name)}</option>`))
     .join('');
 
   const pop = document.createElement('div');
@@ -848,7 +848,7 @@ async function genOpenEditor(personaId) {
     p.nombre = pop.querySelector('#gen-f-nombre').value.trim() || 'Sin nombre';
     p.fechas = pop.querySelector('#gen-f-fechas').value.trim();
     p.linajeId = pop.querySelector('#gen-f-linaje').value;
-    p.personajePath = pop.querySelector('#gen-f-personaje').value;
+    p.personajePath = canonPath(pop.querySelector('#gen-f-personaje').value);
     p.nota = pop.querySelector('#gen-f-nota').value;
     await genSave();
     genCloseEditor();

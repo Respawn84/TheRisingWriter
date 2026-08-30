@@ -147,7 +147,7 @@ async function computeWordStats(folderPath) {
 function getChapterMetadata(folderPath) {
   if (!state.projectData) return { personajes: [], tramas: [], escenaAnterior: '', escenaSiguiente: '', relacionesAnteriores: [], relacionesPosteriores: [] };
   if (!state.projectData.metadatos) state.projectData.metadatos = {};
-  const meta = state.projectData.metadatos[folderPath] || {};
+  const meta = getByPath(state.projectData.metadatos, folderPath) || {};
   return {
     personajes:          meta.personajes          || [],
     tramas:              meta.tramas              || [],
@@ -166,7 +166,7 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
   function sceneOptions(selected) {
     return `<option value="">— Ninguna —</option>` +
       allScenes.map(s =>
-        `<option value="${escapeAttr(s.path)}"${s.path === selected ? ' selected' : ''}>${escapeHtml(s.label)}</option>`
+        `<option value="${escapeAttr(s.path)}"${samePath(s.path, selected) ? ' selected' : ''}>${escapeHtml(s.label)}</option>`
       ).join('');
   }
 
@@ -183,10 +183,10 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
   }
 
   // Tags de relaciones: data-value = ruta completa, texto = etiqueta legible "Capítulo / Escena"
-  const pathToLabel = new Map(allScenes.map(s => [s.path, s.label]));
+  const pathToLabel = new Map(allScenes.map(s => [canonPath(s.path), s.label]));
   function relationTagsHtml(paths) {
     return (paths || []).map(path => {
-      const label = pathToLabel.get(path) || path.split('/').pop();
+      const label = pathToLabel.get(canonPath(path)) || nameFromPath(path);
       return `<span class="meta-tag" data-value="${escapeAttr(path)}" title="${escapeAttr(path)}">${escapeHtml(label)}<button class="meta-tag-remove" title="Eliminar">×</button></span>`;
     }).join('');
   }
@@ -411,14 +411,16 @@ async function saveChapterMetadata(folderPath) {
     .map(el => el.dataset.value);
   const tramas = Array.from(document.querySelectorAll('#meta-tramas-list .meta-tag'))
     .map(el => el.dataset.value);
-  const escenaAnterior = document.getElementById('meta-escena-anterior')?.value || '';
-  const escenaSiguiente = document.getElementById('meta-escena-siguiente')?.value || '';
+  // Los desplegables y los chips llevan la ruta tal cual la da el disco; se
+  // guarda en forma canónica para que project.json sea homogéneo.
+  const escenaAnterior = canonPath(document.getElementById('meta-escena-anterior')?.value || '');
+  const escenaSiguiente = canonPath(document.getElementById('meta-escena-siguiente')?.value || '');
   const relacionesAnteriores = Array.from(document.querySelectorAll('#meta-rel-ant-list .meta-tag'))
-    .map(el => el.dataset.value);
+    .map(el => canonPath(el.dataset.value));
   const relacionesPosteriores = Array.from(document.querySelectorAll('#meta-rel-post-list .meta-tag'))
-    .map(el => el.dataset.value);
+    .map(el => canonPath(el.dataset.value));
 
-  state.projectData.metadatos[folderPath] = { personajes, tramas, escenaAnterior, escenaSiguiente, relacionesAnteriores, relacionesPosteriores };
+  setByPath(state.projectData.metadatos, folderPath, { personajes, tramas, escenaAnterior, escenaSiguiente, relacionesAnteriores, relacionesPosteriores });
 
   const result = await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   if (result.success) {
@@ -443,7 +445,7 @@ async function openPersonajeInSplit(cleanName) {
 
   const fileItem = items.filter(i => i.isFile).find(i => {
     const clean = i.name.replace(/\.[^.]+$/, '').replace(/^\d+-/, '');
-    return clean === cleanName;
+    return sameName(clean, cleanName);
   });
 
   if (!fileItem) { showNotification(`No se encontró el archivo de "${cleanName}"`); return; }

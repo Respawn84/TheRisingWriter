@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="styles/genealogy.css">
   <link rel="stylesheet" href="styles/appSettings.css">
   <link rel="stylesheet" href="styles/editorialReview.css">
+  <link rel="stylesheet" href="styles/repairProject.css">
 </head>
 <body>
   <div id="main-container">
@@ -827,6 +828,29 @@
     </div>
   </div>
 
+  <!-- Modal: Reparar proyecto -->
+  <div id="modal-repair-project" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🩹 Reparar proyecto</h3>
+        <button class="btn-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="repair-intro">
+          Busca referencias del proyecto que apunten a ficheros o carpetas que ya
+          no existen (por renombrados o movimientos antiguos) y las reengancha
+          cuando hay una única coincidencia clara. No se borra nada del disco.
+        </p>
+        <div id="repair-project-body"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel">Cancelar</button>
+        <button id="btn-apply-repair" class="btn-primary" disabled>Aplicar cambios</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Estadísticas del capítulo -->
   <div id="modal-chapter-stats" class="modal hidden">
     <div class="modal-backdrop"></div>
@@ -1087,6 +1111,7 @@
   <script src="renderer/aiPanel.js"></script>
   <script src="renderer/sceneReview.js"></script>
   <script src="renderer/editorialReview.js"></script>
+  <script src="renderer/repairProject.js"></script>
   <script src="renderer/newProject.js"></script>
   <script src="renderer/mindMap.js"></script>
   <script src="renderer/tramaTimeline.js"></script>

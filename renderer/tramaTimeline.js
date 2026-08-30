@@ -85,7 +85,7 @@ async function buildTimelineData() {
     rows.push({ type: 'chapter', label: chapter.name });
 
     for (const scene of scenes) {
-      const meta = state.projectData.metadatos?.[scene.path];
+      const meta = getByPath(state.projectData.metadatos, scene.path);
       const tramas = meta?.tramas || [];
 
       rows.push({
@@ -357,13 +357,13 @@ function setupTimelineInteraction() {
     const type = nodeEl.dataset.type;
 
     if (type === 'scene' && filePath) {
-      const fileName = filePath.split('/').pop();
+      const fileName = nameFromPath(filePath);
       const file = { name: fileName, path: filePath };
       openTab(file);
       openSceneMetadataPanel(file);
       showNotification(`Escena cargada: ${fileName}`);
     } else if (type === 'trama' && filePath) {
-      await openInSplit({ name: filePath.split('/').pop(), path: filePath });
+      await openInSplit({ name: nameFromPath(filePath), path: filePath });
     }
   });
 }

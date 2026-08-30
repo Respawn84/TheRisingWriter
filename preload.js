@@ -75,6 +75,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onNewProject: (callback) => ipcRenderer.on('new-project', callback),
   createNewProject: (params) => ipcRenderer.invoke('create-new-project', params),
   onCloseProject: (callback) => ipcRenderer.on('close-project', callback),
+  onRepairProject: (callback) => ipcRenderer.on('repair-project', callback),
   clearLastProject: () => ipcRenderer.invoke('clear-last-project'),
   onShowAppSettings: (callback) => ipcRenderer.on('show-app-settings', callback)
 });

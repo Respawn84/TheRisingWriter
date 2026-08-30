@@ -45,6 +45,24 @@ const REGEX_PATTERNS = {
 // path -> { snapshot, categories: {key:[{index,length,text}]}, verbosAuxiliares:{status,items,error} }
 const editorialReviewCache = new Map();
 
+// La caché está indexada por ruta, así que renombrar o mover una escena (o la
+// carpeta que la contiene) la dejaría inalcanzable. Lo sincronizan
+// migrateOpenStatePaths / dropOpenStatePaths desde projectManager.js.
+function remapEditorialCachePaths(oldPath, newPath) {
+  for (const key of [...editorialReviewCache.keys()]) {
+    const mapped = remapPath(key, oldPath, newPath);
+    if (mapped === null) continue;
+    editorialReviewCache.set(mapped, editorialReviewCache.get(key));
+    editorialReviewCache.delete(key);
+  }
+}
+
+function removeEditorialCachePaths(deletedPath) {
+  for (const key of [...editorialReviewCache.keys()]) {
+    if (pathMatches(key, deletedPath)) editorialReviewCache.delete(key);
+  }
+}
+
 function computeRegexMatches(text) {
   const categories = {};
   for (const key of Object.keys(REGEX_PATTERNS)) {
@@ -353,6 +371,8 @@ if (typeof module !== 'undefined' && module.exports) {
     triggerManualAuxiliaryAnalysis,
     renderEditorialPanel,
     toggleEditorialPanel,
-    setupEditorialReviewListeners
+    setupEditorialReviewListeners,
+    remapEditorialCachePaths,
+    removeEditorialCachePaths
   };
 }
