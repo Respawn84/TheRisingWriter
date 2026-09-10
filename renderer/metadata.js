@@ -145,7 +145,7 @@ async function computeWordStats(folderPath) {
 }
 
 function getChapterMetadata(folderPath) {
-  if (!state.projectData) return { personajes: [], tramas: [], escenaAnterior: '', escenaSiguiente: '', relacionesAnteriores: [], relacionesPosteriores: [] };
+  if (!state.projectData) return { personajes: [], tramas: [], escenaAnterior: '', escenaSiguiente: '', relacionesAnteriores: [], relacionesPosteriores: [], temporalidad: defaultTemporalidad() };
   if (!state.projectData.metadatos) state.projectData.metadatos = {};
   const meta = getByPath(state.projectData.metadatos, folderPath) || {};
   return {
@@ -154,7 +154,32 @@ function getChapterMetadata(folderPath) {
     escenaAnterior:      meta.escenaAnterior      || '',
     escenaSiguiente:     meta.escenaSiguiente     || '',
     relacionesAnteriores:  meta.relacionesAnteriores  || [],
-    relacionesPosteriores: meta.relacionesPosteriores || []
+    relacionesPosteriores: meta.relacionesPosteriores || [],
+    temporalidad:        normalizeTemporalidad(meta.temporalidad)
+  };
+}
+
+// === TEMPORALIDAD DE ESCENA ===
+
+const TEMPORALIDAD_UNIDADES = [
+  { value: 'horas', label: 'Horas' },
+  { value: 'dias',  label: 'D\u00edas'  },
+  { value: 'meses', label: 'Meses' },
+  { value: 'anios', label: 'A\u00f1os'  }
+];
+
+function defaultTemporalidad() {
+  return { cantidad: 1, unidad: 'dias', escenaRef: '' };
+}
+
+function normalizeTemporalidad(t) {
+  const base = defaultTemporalidad();
+  if (!t || typeof t !== 'object') return base;
+  const cantidad = parseInt(t.cantidad, 10);
+  return {
+    cantidad: Number.isFinite(cantidad) ? cantidad : base.cantidad,
+    unidad: TEMPORALIDAD_UNIDADES.some(u => u.value === t.unidad) ? t.unidad : base.unidad,
+    escenaRef: t.escenaRef || ''
   };
 }
 
@@ -168,6 +193,12 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
       allScenes.map(s =>
         `<option value="${escapeAttr(s.path)}"${samePath(s.path, selected) ? ' selected' : ''}>${escapeHtml(s.label)}</option>`
       ).join('');
+  }
+
+  function unidadOptions(selected) {
+    return TEMPORALIDAD_UNIDADES.map(u =>
+      `<option value="${u.value}"${u.value === selected ? ' selected' : ''}>${escapeHtml(u.label)}</option>`
+    ).join('');
   }
 
   function comboOptions(items, placeholder) {
@@ -272,6 +303,25 @@ function renderMetadataPanel(existing, personajesItems, tramasItems, allScenes, 
       <div id="meta-rel-post-list" class="meta-tag-list">
         ${relationTagsHtml(existing.relacionesPosteriores)}
       </div>
+    </div>
+
+  </details>
+
+  <details class="meta-collapsible">
+    <summary class="meta-collapsible-header">⏱ Temporalidad</summary>
+
+    <div class="meta-section" style="border-bottom:none">
+      <div class="meta-section-title">⏳ Distancia temporal</div>
+      <div class="meta-combo-row">
+        <input type="number" id="meta-temp-cantidad" class="meta-number" step="1" value="${existing.temporalidad.cantidad}">
+        <select id="meta-temp-unidad" class="meta-select">
+          ${unidadOptions(existing.temporalidad.unidad)}
+        </select>
+      </div>
+      <div class="meta-section-title" style="margin-top:12px">↺ Respecto a escena</div>
+      <select id="meta-temp-escena" class="meta-select meta-select-full">
+        ${sceneOptions(existing.temporalidad.escenaRef || '')}
+      </select>
     </div>
 
   </details>` : ''}
@@ -420,7 +470,20 @@ async function saveChapterMetadata(folderPath) {
   const relacionesPosteriores = Array.from(document.querySelectorAll('#meta-rel-post-list .meta-tag'))
     .map(el => canonPath(el.dataset.value));
 
-  setByPath(state.projectData.metadatos, folderPath, { personajes, tramas, escenaAnterior, escenaSiguiente, relacionesAnteriores, relacionesPosteriores });
+  // La temporalidad solo se renderiza en escenas; en capítulos se conserva lo que hubiera.
+  const tempCantidadEl = document.getElementById('meta-temp-cantidad');
+  const temporalidad = tempCantidadEl
+    ? normalizeTemporalidad({
+        cantidad: tempCantidadEl.value,
+        unidad: document.getElementById('meta-temp-unidad')?.value,
+        escenaRef: canonPath(document.getElementById('meta-temp-escena')?.value || '')
+      })
+    : getByPath(state.projectData.metadatos, folderPath)?.temporalidad;
+
+  const nuevaMeta = { personajes, tramas, escenaAnterior, escenaSiguiente, relacionesAnteriores, relacionesPosteriores };
+  if (temporalidad) nuevaMeta.temporalidad = temporalidad;
+
+  setByPath(state.projectData.metadatos, folderPath, nuevaMeta);
 
   const result = await window.electronAPI.saveProjectJson(state.projectJsonPath, state.projectData);
   if (result.success) {
