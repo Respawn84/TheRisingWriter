@@ -323,6 +323,23 @@
   width: 100%;
 }
 
+.meta-number {
+  width: 72px;
+  flex: 0 0 auto;
+  background: var(--bg-secondary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.meta-number:focus {
+  outline: none;
+  border-color: var(--accent, #4a9eff);
+}
+
 .meta-btn-add {
   background: var(--bg-secondary);
   color: var(--text);
