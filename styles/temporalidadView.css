@@ -1,0 +1,123 @@
+/* ====================================
+   VISTA DE TEMPORALIDAD
+   Eje ordinal de días + swimlanes de tramas
+   Encastrada en el área del editor
+   ==================================== */
+
+#temporalidad-resizer {
+  height: 5px;
+  flex-shrink: 0;
+  cursor: row-resize;
+  background: var(--border);
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+#temporalidad-resizer:hover,
+#temporalidad-resizer.resizing {
+  background: var(--accent, #4a9eff);
+}
+
+#temporalidad-resizer.hidden {
+  display: none;
+}
+
+#temporalidad-panel {
+  flex-shrink: 0;
+  height: 360px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  background: #0f172a;
+  overflow: hidden;
+}
+
+#temporalidad-panel.hidden {
+  display: none;
+}
+
+#temporalidad-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+}
+
+#temporalidad-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  white-space: nowrap;
+}
+
+#temporalidad-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#temporalidad-status.tv-status-clickable {
+  cursor: pointer;
+}
+
+.tv-status-ok   { color: #64748b; }
+.tv-status-warn { color: #facc15; font-weight: 600; }
+.tv-status-note { color: #475569; font-style: italic; }
+
+#temporalidad-hint {
+  flex: 1;
+  text-align: right;
+  font-size: 11px;
+  color: #475569;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+#temporalidad-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+#temporalidad-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+#temporalidad-svg .tv-node rect {
+  transition: filter 0.12s;
+}
+
+#temporalidad-svg .tv-node[data-path]:hover rect {
+  filter: brightness(1.35);
+}
+
+#btn-temporalidad.active {
+  background: var(--accent, #4a9eff);
+  color: #fff;
+  border-radius: 4px;
+}
+
+.tv-loading,
+.tv-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.6;
+}
