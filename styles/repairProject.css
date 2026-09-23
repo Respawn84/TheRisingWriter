@@ -95,3 +95,46 @@
   color: var(--text-secondary);
   white-space: nowrap;
 }
+
+/* --- Listado de escenas con problemas de referencias --- */
+
+.repair-list.repair-scenes li.repair-scene {
+  display: block;
+  padding: 8px 10px;
+}
+
+.repair-scene-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.repair-problems {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 12px;
+  border-left: 2px solid var(--border);
+}
+
+.repair-problems li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+  margin: 0;
+  background: none;
+  border-radius: 0;
+}
+
+.repair-field {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent, #4a9eff);
+}
+
+/* Las rutas largas no deben empujar el motivo fuera del modal */
+.repair-problems .repair-reason {
+  white-space: normal;
+}

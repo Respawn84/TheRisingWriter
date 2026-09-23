@@ -6,6 +6,7 @@
   <title>The Rising Editor</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/tramaTimeline.css">
+  <link rel="stylesheet" href="styles/temporalidadView.css">
   <link rel="stylesheet" href="styles/genealogy.css">
   <link rel="stylesheet" href="styles/appSettings.css">
   <link rel="stylesheet" href="styles/editorialReview.css">
@@ -22,6 +23,7 @@
         <button id="btn-project-metadata" class="btn-icon" title="Metadatos del proyecto">📋</button>
         <button id="btn-mindmap" class="btn-icon" title="Mapa mental">🗺️</button>
         <button id="btn-timeline" class="btn-icon" title="Línea temporal de tramas">📊</button>
+        <button id="btn-temporalidad" class="btn-icon" title="Vista de temporalidad (días × tramas)">⏳</button>
         <button id="btn-genealogy" class="btn-icon" title="Árbol genealógico">🌳</button>
       </div>
       <div id="file-tree">
@@ -86,6 +88,17 @@
           <div id="timeline-hint">Rueda: zoom · Arrastrar: mover · Clic escena: abrir · Clic trama: ver en split</div>
         </div>
         <div id="timeline-container"></div>
+      </div>
+
+      <!-- Vista de temporalidad Resizer + Panel -->
+      <div id="temporalidad-resizer" class="hidden"></div>
+      <div id="temporalidad-panel" class="hidden">
+        <div id="temporalidad-toolbar">
+          <span id="temporalidad-title">Temporalidad · días × tramas</span>
+          <div id="temporalidad-status"></div>
+          <div id="temporalidad-hint">Rueda: zoom · Arrastrar: mover · Clic escena: abrir · Clic trama: ver en split</div>
+        </div>
+        <div id="temporalidad-container"></div>
       </div>
 
       <!-- Mind Map Resizer + Panel -->
@@ -1115,6 +1128,7 @@
   <script src="renderer/newProject.js"></script>
   <script src="renderer/mindMap.js"></script>
   <script src="renderer/tramaTimeline.js"></script>
+  <script src="renderer/temporalidadView.js"></script>
   <script src="renderer/genealogy.js"></script>
   <script src="renderer/appSettings.js"></script>
   <script src="renderer/promptsConfig.js"></script>

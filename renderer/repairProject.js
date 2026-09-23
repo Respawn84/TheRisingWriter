@@ -69,6 +69,7 @@ function collectReferencedPaths() {
     add(meta?.escenaSiguiente);
     (meta?.relacionesAnteriores || []).forEach(add);
     (meta?.relacionesPosteriores || []).forEach(add);
+    add(meta?.temporalidad?.escenaRef);
   });
 
   Object.keys(data.metadatosTramas || {}).forEach(add);
@@ -80,6 +81,110 @@ function collectReferencedPaths() {
   (data.genealogia?.personas || []).forEach(persona => add(persona?.personajePath));
 
   return refs;
+}
+
+// Campos de los metadatos de una escena que apuntan a OTRA escena.
+// temporalidad.escenaRef va aparte: ahí la autorreferencia no es un error,
+// es la forma de decir "soy el origen de la línea temporal".
+const SCENE_REF_FIELDS = [
+  { key: 'escenaAnterior',        label: 'Escena anterior',    lista: false },
+  { key: 'escenaSiguiente',       label: 'Escena siguiente',   lista: false },
+  { key: 'relacionesAnteriores',  label: 'Relación anterior',  lista: true  },
+  { key: 'relacionesPosteriores', label: 'Relación posterior', lista: true  },
+];
+
+// Diagnóstico de integridad de las referencias entre escenas.
+// No repara: enumera. Lo que el reenganche vaya a arreglar se marca como tal,
+// para distinguir el daño que se cura solo del que hay que tocar a mano.
+function analyzeSceneReferences(realSet, mapping, capitulosRuta) {
+  const metadatos = state.projectData?.metadatos || {};
+
+  const esEscena = (ruta) => {
+    const c = canonPath(ruta);
+    if (!realSet.has(c) || !/\.txt$/i.test(c)) return false;
+    return capitulosRuta ? pathMatches(c, capitulosRuta) : true;
+  };
+
+  // Motivo por el que una referencia no es válida, o null si lo es.
+  const motivoDe = (valor) => {
+    const c = canonPath(valor);
+    if (!realSet.has(c)) return 'la escena referenciada ya no existe';
+    if (!esEscena(c))    return 'apunta a algo que no es una escena';
+    return null;
+  };
+
+  // Cadenas de temporalidad circulares: sin raíz, el día absoluto no se puede
+  // calcular y la vista de temporalidad no puede situar la escena.
+  const refTemporal = {};
+  for (const [ruta, meta] of Object.entries(metadatos)) {
+    const ref = canonPath(meta?.temporalidad?.escenaRef || '');
+    refTemporal[canonPath(ruta)] = (!ref || ref === canonPath(ruta)) ? null : ref;
+  }
+  const enCiclo = new Set();
+  for (const inicio of Object.keys(refTemporal)) {
+    const vistas = new Set();
+    let cur = inicio;
+    while (cur && refTemporal[cur] !== undefined && refTemporal[cur] !== null) {
+      if (vistas.has(cur)) { enCiclo.add(inicio); break; }
+      vistas.add(cur);
+      cur = refTemporal[cur];
+    }
+  }
+
+  const issues = [];
+
+  for (const [rutaEscena, meta] of Object.entries(metadatos)) {
+    if (!meta) continue;
+    const canon = canonPath(rutaEscena);
+    const problemas = [];
+
+    // La propia entrada puede haber quedado colgando de un renombrado
+    if (!realSet.has(canon)) {
+      problemas.push({
+        campo: 'Entrada de metadatos',
+        valor: canon,
+        motivo: 'el fichero de la escena ya no existe',
+        reparable: mapping.has(rutaEscena),
+      });
+    }
+
+    for (const { key, label, lista } of SCENE_REF_FIELDS) {
+      const valores = lista ? (meta[key] || []) : [meta[key]];
+      for (const valor of valores) {
+        if (typeof valor !== 'string' || !valor) continue;
+        let motivo = motivoDe(valor);
+        if (!motivo && canonPath(valor) === canon) motivo = 'se apunta a sí misma';
+        if (!motivo) continue;
+        problemas.push({ campo: label, valor, motivo, reparable: mapping.has(valor) });
+      }
+    }
+
+    const refTemp = meta.temporalidad?.escenaRef;
+    if (typeof refTemp === 'string' && refTemp && canonPath(refTemp) !== canon) {
+      const motivo = motivoDe(refTemp);
+      if (motivo) {
+        problemas.push({
+          campo: 'Temporalidad',
+          valor: refTemp,
+          motivo,
+          reparable: mapping.has(refTemp),
+        });
+      }
+    }
+
+    if (enCiclo.has(canon)) {
+      problemas.push({
+        campo: 'Temporalidad',
+        valor: '',
+        motivo: 'cadena temporal circular: la escena no se puede situar en el tiempo',
+        reparable: false,
+      });
+    }
+
+    if (problemas.length > 0) issues.push({ scenePath: canon, problemas });
+  }
+
+  return issues.sort((a, b) => a.scenePath.localeCompare(b.scenePath, undefined, { numeric: true }));
 }
 
 // Analiza sin tocar nada: qué está roto y qué se puede reenganchar.
@@ -178,7 +283,13 @@ async function analyzeProjectRepair() {
       capitulos[p].frecuenciaMinLetras !== undefined
     ));
 
-  return { rootPath, mapping, duplicates, unresolved, wordFreqChapters };
+  const sceneRefIssues = analyzeSceneReferences(
+    realSet,
+    mapping,
+    state.projectData.configuracion?.directorios?.capitulos?.ruta
+  );
+
+  return { rootPath, mapping, duplicates, unresolved, wordFreqChapters, sceneRefIssues };
 }
 
 // Aplica el informe: reescribe las rutas reenganchadas y purga la frecuencia.
@@ -236,6 +347,7 @@ async function applyProjectRepair(report) {
       mapField(meta, 'escenaSiguiente');
       mapList(meta, 'relacionesAnteriores');
       mapList(meta, 'relacionesPosteriores');
+      mapField(meta.temporalidad, 'escenaRef');
     }
   }
 
@@ -303,7 +415,7 @@ async function openRepairProjectModal() {
     return;
   }
 
-  const { rootPath, mapping, duplicates, unresolved, wordFreqChapters } = repairReport;
+  const { rootPath, mapping, duplicates, unresolved, wordFreqChapters, sceneRefIssues } = repairReport;
   const rel = (p) => escapeRepairHtml(relativeToRoot(p, rootPath));
   let html = '';
 
@@ -338,6 +450,34 @@ async function openRepairProjectModal() {
         `<li><span class="repair-old">${rel(u.oldPath)}</span>
              <span class="repair-reason">${escapeRepairHtml(u.motivo)}</span></li>`
       ).join('') + `</ul></div>`;
+  }
+
+  if (sceneRefIssues.length > 0) {
+    const totalProblemas = sceneRefIssues.reduce((n, i) => n + i.problemas.length, 0);
+    const porArreglar = sceneRefIssues.reduce(
+      (n, i) => n + i.problemas.filter(pr => !pr.reparable).length, 0);
+
+    html += `<div class="repair-section">
+      <div class="repair-section-title repair-warn">
+        ${sceneRefIssues.length} escena(s) con referencias con problemas — ${totalProblemas} en total
+      </div>
+      <p class="repair-note">${
+        porArreglar === 0
+          ? 'Todas se reenganchan al aplicar los cambios.'
+          : `${porArreglar} no se pueden reenganchar solas: corrígelas desde el panel de metadatos de cada escena.`
+      }</p>
+      <ul class="repair-list repair-scenes">` +
+      sceneRefIssues.map(issue => `<li class="repair-scene">
+          <div class="repair-scene-name">${rel(issue.scenePath)}</div>
+          <ul class="repair-problems">` +
+          issue.problemas.map(pr => `<li>
+              <span class="repair-field">${escapeRepairHtml(pr.campo)}</span>
+              ${pr.valor ? `<span class="repair-old">${rel(pr.valor)}</span>` : ''}
+              <span class="repair-reason">${escapeRepairHtml(pr.motivo)}${
+                pr.reparable ? ' · se reengancha al aplicar' : ''}</span>
+            </li>`).join('') +
+          `</ul>
+        </li>`).join('') + `</ul></div>`;
   }
 
   if (wordFreqChapters.length > 0) {

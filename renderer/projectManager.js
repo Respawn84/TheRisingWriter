@@ -364,6 +364,7 @@ function migrateProjectPaths(oldPath, newPath) {
       mapField(meta, 'escenaSiguiente');
       mapList(meta, 'relacionesAnteriores');
       mapList(meta, 'relacionesPosteriores');
+      mapField(meta.temporalidad, 'escenaRef');
     }
   }
 
@@ -437,6 +438,7 @@ function canonicalizeProjectData() {
       canonField(meta, 'escenaSiguiente');
       canonList(meta, 'relacionesAnteriores');
       canonList(meta, 'relacionesPosteriores');
+      canonField(meta.temporalidad, 'escenaRef');
     }
   }
 
@@ -511,6 +513,9 @@ function removeProjectPaths(deletedPath) {
       clearField(meta, 'escenaSiguiente');
       filterList(meta, 'relacionesAnteriores');
       filterList(meta, 'relacionesPosteriores');
+      // Al vaciarse, la escena pasa a ser raíz temporal: su cantidad se lee
+      // como día absoluto. Es preferible a dejar la referencia colgando.
+      clearField(meta.temporalidad, 'escenaRef');
     }
   }
 
